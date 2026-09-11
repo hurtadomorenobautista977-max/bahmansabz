@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد راهبری شبکه سینماهای بهمن سبز</title>
+    
+    <!-- استفاده از فونت وزیرمتن -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', 'sans-serif'],
+                    },
+                    colors: {
+                        theme: {
+                            dark: '#1a1d24',
+                            light: '#f8fafc',
+                            cardDark: 'rgba(30, 34, 42, 0.75)',
+                            cardLight: 'rgba(255, 255, 255, 0.8)',
+                            borderDark: 'rgba(255, 255, 255, 0.1)',
+                            borderLight: 'rgba(0, 0, 0, 0.1)',
+                        },
+                        brand: {
+                            green: '#10b981',
+                            blue: '#3b82f6',
+                            purple: '#8b5cf6',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base & Scrollbar */
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            overflow: hidden; /* جلوگیری از اسکرول کل بادی، اسکرول روی بخش محتواست */
+            background-color: var(--main-bg);
+            color: var(--text-main);
+            transition: background-color 0.4s ease, color 0.4s ease;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(156, 163, 175, 0.8); }
+
+        /* Theme Variables */
+        html.dark {
+            --card-bg: rgba(30, 34, 42, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --main-bg: #121419;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        html:not(.dark) {
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --card-border: rgba(0, 0, 0, 0.08);
+            --main-bg: #f1f5f9; /* کمی روشن‌تر برای تضاد بهتر */
+            --text-main: #1e293b;
+            --text-muted: #475569;
+        }
+
+        /* Pattern */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            background-image: url('لوگو-بهمن-سبز.png');
+            background-size: 150px;
+            background-repeat: repeat;
+            transform: rotate(-5deg) scale(1.2);
+            pointer-events: none;
+            transition: opacity 0.4s ease, filter 0.4s ease;
+        }
+
+        /* لایت مود: سیاه کردن لوگوی سفید و کمرنگ کردن */
+        html:not(.dark) .bg-pattern {
+            filter: invert(1);
+            mix-blend-mode: multiply;
+            opacity: 0.03;
+        }
+
+        /* دارک مود: محو کردن بخش‌های مشکی لوگو و نگه داشتن خطوط سفید */
+        .dark .bg-pattern {
+            filter: invert(0);
+            mix-blend-mode: screen;
+            opacity: 0.02; /* شفافیت کمتر برای جلوگیری از شلوغی */
+        }
+        
+        /* Glass Cards */
+        .glass-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* سایه نرم‌تر */
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; /* ساده‌سازی ترانزیشن */
+        }
+
+        /* Grid Layouts & Expanding Animation */
+        .grid-container {
+            display: grid;
+            gap: 1.5rem;
+            /* ترانزیشن نرم‌تر برای جلوگیری از لگ */
+            transition: grid-template-columns 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        @media (min-width: 768px) {
+            .grid-container { grid-template-columns: 1fr 1fr; }
+            .grid-container.focus-right { grid-template-columns: 2.5fr 1fr; }
+            .grid-container.focus-left { grid-template-columns: 1fr 2.5fr; }
+        }
+
+        /* Expandable Card Styles */
+        .expandable-card {
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            scroll-margin-top: 100px; /* فاصله از بالا برای اسکرول دقیق‌تر */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* فقط برای هاور */
+        }
+
+        .expandable-card:hover:not(.is-focused) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .expandable-card .card-content {
+            max-height: 120px; /* استفاده از max-height برای انیمیشن بهتر */
+            overflow: hidden;
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            transition: max-height 0.5s ease-in-out, mask-image 0.3s ease; /* انیمیشن نرم */
+        }
+
+        .expandable-card.is-focused {
+            cursor: default;
+        }
+
+        .expandable-card.is-focused .card-content {
+            max-height: 2000px; /* عددی بزرگ برای باز شدن کامل */
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
+        /* Close Button */
+        .close-btn {
+            position: absolute;
+            top: 1.25rem;
+            left: 1.25rem;
+            opacity: 0;
+            visibility: hidden; /* در حالت عادی رندر نمیشود */
+            transform: scale(0.8);
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .expandable-card.is-focused .close-btn {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        /* Layout & Transitions */
+        #main-scroll {
+            transition: padding-right 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* انیمیشن نرم‌تر */
+            /* فعال کردن اسکرول نرم برای کل محتوا */
+            scroll-behavior: smooth; 
+        }
+
+        /* Sidebar Transition */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            width: 20rem; /* 320px */
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* انیمیشن نرم‌تر */
+            z-index: 40;
+            border-left: 1px solid var(--card-border);
+        }
+
+        #sidebar.open {
+            transform: translateX(0);
+        }
+        
+        .section-intro {
+            scroll-margin-top: 80px; /* فاصله برای اسکرول به ابتدای بخش */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Patterns -->
+    <div class="bg-pattern"></div>
+    
+    <!-- Orbs removed as requested -->
+
+    <!-- Sidebar (Fixed) -->
+    <aside id="sidebar" class="glass-card rounded-none flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                فهرست مطالب
+            </h2>
+            <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <div class="p-4 flex-1 overflow-y-auto space-y-4">
+            <!-- Nav Item 1 -->
+            <div class="glass-card rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800/50">
+                <button onclick="toggleAccordion('acc-1', 'section-1')" class="w-full p-4 flex items-center justify-between text-brand-green hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <span class="font-bold text-sm">۱. مدیریت راهبری سینماها</span>
+                    <svg class="w-4 h-4 transform transition-transform" id="icon-acc-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="acc-1" class="hidden px-4 pb-4 space-y-2 text-sm">
+                    <button onclick="scrollToCard('s1-c1')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-green transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-green">شناخت و ارزیابی جامع</button>
+                    <button onclick="scrollToCard('s1-c2')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-green transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-green">ارتباط با مدیران</button>
+                    <button onclick="scrollToCard('s1-c3')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-green transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-green">طراحی نظام پایش</button>
+                    <button onclick="scrollToCard('s1-c4')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-green transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-green">استانداردسازی فرآیندها</button>
+                </div>
+            </div>
+
+            <!-- Nav Item 2 -->
+            <div class="glass-card rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800/50">
+                <button onclick="toggleAccordion('acc-2', 'section-2')" class="w-full p-4 flex items-center justify-between text-brand-blue hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <span class="font-bold text-sm">۲. مدیریت توسعه مخاطب</span>
+                    <svg class="w-4 h-4 transform transition-transform" id="icon-acc-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="acc-2" class="hidden px-4 pb-4 space-y-2 text-sm">
+                    <button onclick="scrollToCard('s2-c1')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-blue transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-blue">باشگاه مشتریان</button>
+                    <button onclick="scrollToCard('s2-c2')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-blue transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-blue">مدل B2B باشگاه</button>
+                    <button onclick="scrollToCard('s2-c3')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-blue transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-blue">توسعه از مسیر مدارس</button>
+                    <button onclick="scrollToCard('s2-c4')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-blue transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-blue">نظام‌مند کردن رویدادها</button>
+                </div>
+            </div>
+
+            <!-- Nav Item 3 -->
+            <div class="glass-card rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800/50">
+                <button onclick="toggleAccordion('acc-3', 'section-3')" class="w-full p-4 flex items-center justify-between text-brand-purple hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                    <span class="font-bold text-sm">۳. رشد و ارتقاء کیفی</span>
+                    <svg class="w-4 h-4 transform transition-transform" id="icon-acc-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="acc-3" class="hidden px-4 pb-4 space-y-2 text-sm">
+                    <button onclick="scrollToCard('s3-c1')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-purple transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-purple">چارچوب استانداردسازی</button>
+                    <button onclick="scrollToCard('s3-c2')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-purple transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-purple">پروتکل تجربه مخاطب</button>
+                    <button onclick="scrollToCard('s3-c3')" class="w-full text-right py-1 text-gray-600 dark:text-gray-400 hover:text-brand-purple transition-colors flex items-center gap-2 before:content-['•'] before:text-brand-purple">نیازسنجی آموزشی</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content (Scrollable) -->
+    <main id="main-scroll" class="w-full h-screen overflow-y-auto relative">
+        
+        <!-- Sticky Header -->
+        <header class="sticky top-0 z-30 glass-card rounded-none border-t-0 border-x-0 px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="p-2 bg-gray-200 dark:bg-gray-800/80 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <!-- Dynamic Header Title -->
+                <div id="dynamic-header-container" class="flex items-center gap-3 text-brand-green transition-colors duration-300">
+                    <div id="header-icon" class="w-10 h-10 bg-current/20 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <h1 id="dynamic-header-title" class="text-xl md:text-2xl font-bold">
+                        مدیریت راهبری سینماها
+                    </h1>
+                </div>
+            </div>
+            
+            <button onclick="toggleTheme()" class="p-2 rounded-full bg-gray-200 dark:bg-gray-800/80 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm">
+                <svg id="theme-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <div class="p-6 md:p-10 max-w-7xl mx-auto space-y-24 pb-32">
+
+            <!-- بخش اول: مدیریت راهبری -->
+            <section id="section-1" class="space-y-8 section-intro">
+                <div class="glass-card p-6 md:p-8 text-center max-w-3xl mx-auto border-t-4 border-t-brand-green">
+                    <p class="text-base md:text-lg leading-relaxed opacity-90">
+                        هدف این مدیریت در دوره «شناخت و پایه‌گذاری»، ایجاد شناخت جامع و داده‌محور از وضعیت سینماهای شبکه، شناسایی ظرفیت‌ها، مسائل و اولویت‌های هر مجموعه، تقویت ارتباط مستقیم با مدیران و ایجاد چارچوب اولیه برای پایش و راهبری یکپارچه شبکه است.
+                    </p>
+                </div>
+
+                <div class="grid-container" id="grid-1">
+                    <!-- کارت ۱ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s1-c1" onclick="focusCard(this, 'grid-1')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-1')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-green mb-6 flex items-center gap-3">
+                            <span class="bg-brand-green/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۱</span>
+                            شناخت و ارزیابی جامع شبکه
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-green font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-green">
+                                    <li>طراحی و تدوین پرسشنامه جامع ارزیابی وضعیت سینماها</li>
+                                    <li>جمع‌آوری اطلاعات مدیریتی، عملیاتی، فنی، تجاری و محیطی</li>
+                                    <li>بررسی وضعیت مدیران، تخصص‌ها، سوابق، تجربیات و ظرفیت‌های نیروی انسانی</li>
+                                    <li>شناسایی ظرفیت سالن‌ها، فضاها و امکانات قابل توسعه</li>
+                                    <li>بررسی وضعیت تبلیغات، ظرفیت‌های درآمدی و میزان بهره‌برداری از ظرفیت‌ها</li>
+                                    <li>بررسی وضعیت ظاهری و محیطی، فنی، تجهیزات، زیرساخت‌ها و نیازها</li>
+                                    <li>بررسی وضعیت فروش، عملکرد تجاری و عوامل مؤثر بر عملکرد</li>
+                                    <li>بررسی تعاملات سینما با مخاطبان، کسب‌وکارهای محلی و ذی‌نفعان</li>
+                                    <li>یکپارچه‌سازی اطلاعات و ایجاد بانک اولیه وضعیت شبکه</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-green/10 p-4 rounded-xl border border-brand-green/20">
+                                <h4 class="text-brand-green font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">ایجاد تصویر جامع و یکپارچه از وضعیت موجود سینماهای شبکه به‌عنوان مبنای شناسایی نقاط قوت، ضعف، ظرفیت‌های قابل توسعه و اولویت‌های مداخله.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۲ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s1-c2" onclick="focusCard(this, 'grid-1')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-1')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-green mb-6 flex items-center gap-3">
+                            <span class="bg-brand-green/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۲</span>
+                            گردهمایی و ارتباط مستقیم با مدیران
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-green font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-green">
+                                    <li>تحلیل اطلاعات پرسشنامه و شناسایی موضوعات مشترک و اولویت‌دار</li>
+                                    <li>دسته‌بندی و انتخاب مدیران و شهرهای هدف بر اساس مسائل و ظرفیت‌ها</li>
+                                    <li>برنامه‌ریزی و برگزاری گردهمایی‌های منطقه‌ای مدیران سینماها</li>
+                                    <li>ارائه رویکردها و چارچوب‌های جدید راهبری شبکه</li>
+                                    <li>دریافت مستقیم مسائل، دغدغه‌ها، تجربیات و پیشنهادهای مدیران</li>
+                                    <li>شناسایی ظرفیت‌های محلی و فرصت‌های قابل توسعه</li>
+                                    <li>جمع‌بندی و تبدیل مسائل مطرح‌شده به موارد قابل پیگیری</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-green/10 p-4 rounded-xl border border-brand-green/20">
+                                <h4 class="text-brand-green font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">ایجاد ارتباط مستقیم و نظام‌مند با مدیران سینماها و تکمیل شناخت میدانی از وضعیت، مسائل و ظرفیت‌های شبکه.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۳ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s1-c3" onclick="focusCard(this, 'grid-1')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-1')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-green mb-6 flex items-center gap-3">
+                            <span class="bg-brand-green/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۳</span>
+                            طراحی نظام پایش و داده‌محور
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-green font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-green">
+                                    <li>تجمیع و تحلیل اطلاعات حاصل از فرآیند شناخت و ارزیابی</li>
+                                    <li>تعیین شاخص‌ها و اطلاعات کلیدی مورد نیاز برای پایش مستمر</li>
+                                    <li>طراحی چارچوب اولیه نظام پایش و گزارش‌گیری شبکه</li>
+                                    <li>تعیین فرآیند دریافت، تحلیل و به‌روزرسانی اطلاعات</li>
+                                    <li>طراحی سازوکار پایش مستمر وضعیت و عملکرد سینماها</li>
+                                    <li>شناسایی نقاط ضعف، انحرافات، ظرفیت‌های قابل توسعه و نیازها</li>
+                                    <li>تعریف سازوکار ارجاع و پیگیری مسائل شناسایی‌شده</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-green/10 p-4 rounded-xl border border-brand-green/20">
+                                <h4 class="text-brand-green font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">ایجاد چارچوب اولیه نظام پایش و راهبری داده‌محور سینماها برای رصد مستمر وضعیت، عملکرد، ظرفیت‌ها و نیازهای شبکه.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۴ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s1-c4" onclick="focusCard(this, 'grid-1')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-1')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-green mb-6 flex items-center gap-3">
+                            <span class="bg-brand-green/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۴</span>
+                            استانداردسازی و طراحی فرآیندها
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-green font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-green">
+                                    <li>شناسایی و بررسی فرآیندهای اصلی ارتباط میان ستاد و سینماها</li>
+                                    <li>شناسایی نقاط ضعف و خلأهای فرآیندی و تعیین اولویت‌های اصلاح</li>
+                                    <li>طراحی و مستندسازی فرآیندهای کلیدی راهبری</li>
+                                    <li>تعیین نقش و مسئولیت سینماها و واحدهای ستادی</li>
+                                    <li>تعریف سازوکار گزارش‌دهی، پیگیری و ارزیابی اقدامات</li>
+                                    <li>طراحی الگوی یکپارچه ثبت، پیگیری و ارزیابی اقدامات سینماها</li>
+                                    <li>تدوین چارچوب اولیه سیاست‌ها و فرآیندهای راهبری شبکه</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-green/10 p-4 rounded-xl border border-brand-green/20">
+                                <h4 class="text-brand-green font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تدوین چارچوب اولیه فرآیندهای راهبری و استانداردسازی ارتباط ستاد و سینماها با هدف ایجاد رویه‌ای یکپارچه، شفاف و قابل پایش.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- بخش دوم: توسعه مخاطب -->
+            <section id="section-2" class="space-y-8 section-intro">
+                <div class="glass-card p-6 md:p-8 text-center max-w-3xl mx-auto border-t-4 border-t-brand-blue">
+                    <p class="text-base md:text-lg leading-relaxed opacity-90">
+                        هدف این مدیریت در دوره «شناخت و پایه‌گذاری»، ایجاد زیرساخت‌های اولیه توسعه مخاطب، شناسایی و فعال‌سازی ظرفیت‌های جدید جذب مخاطب و طراحی مسیرهای پایدار برای ارتباط و تعامل با مخاطبان شبکه سینماهای بهمن سبز است.
+                    </p>
+                </div>
+
+                <div class="grid-container" id="grid-2">
+                    <!-- کارت ۱ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s2-c1" onclick="focusCard(this, 'grid-2')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-2')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-blue mb-6 flex items-center gap-3">
+                            <span class="bg-brand-blue/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۱</span>
+                            طراحی اولیه باشگاه مشتریان
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-blue font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-blue">
+                                    <li>تعیین اهداف و کارکردهای باشگاه</li>
+                                    <li>تعیین گروه‌های مخاطب هدف</li>
+                                    <li>طراحی مدل عضویت و ساختار باشگاه</li>
+                                    <li>طراحی سناریوهای اولیه ارتباط و تعامل با مخاطب</li>
+                                    <li>تدوین MVP باشگاه</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20">
+                                <h4 class="text-brand-blue font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تهیه نسخه اولیه باشگاه مخاطبان با هدف توسعه و تعمیق ارتباط با مخاطبان سینماهای بهمن سبز.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۲ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s2-c2" onclick="focusCard(this, 'grid-2')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-2')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-blue mb-6 flex items-center gap-3">
+                            <span class="bg-brand-blue/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۲</span>
+                            طراحی مدل B2B باشگاه
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-blue font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-blue">
+                                    <li>شناسایی ارزش پیشنهادی باشگاه برای سازمان‌ها و مجموعه‌های بانکی</li>
+                                    <li>طراحی مدل همکاری</li>
+                                    <li>تعریف خدمات و مزایای قابل ارائه</li>
+                                    <li>طراحی مدل اقتصادی اولیه</li>
+                                    <li>تدوین بسته پیشنهادی همکاری</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20">
+                                <h4 class="text-brand-blue font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تدوین پروپوزال اولیه باشگاه مخاطبان برای سازمان‌ها با هدف ایجاد امکان هویت بخشی به مخاطبان، تقویت ارتباط و وفادارسازی مشتریان و توسعه ظرفیت تجاری.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۳ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s2-c3" onclick="focusCard(this, 'grid-2')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-2')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-blue mb-6 flex items-center gap-3">
+                            <span class="bg-brand-blue/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۳</span>
+                            توسعه مخاطب از مسیر مدارس
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-blue font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-blue">
+                                    <li>شناسایی ظرفیت‌های همکاری با مدارس</li>
+                                    <li>طراحی مدل همکاری</li>
+                                    <li>تعریف پیشنهاد ارزش برای مدارس، دانش‌آموزان و خانواده‌ها</li>
+                                    <li>طراحی مکانیزم حضور گروهی در سینما</li>
+                                    <li>تدوین کمپین اولیه توسعه مخاطب</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20">
+                                <h4 class="text-brand-blue font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">توسعه فروش و جذب مخاطب از طریق توسعه ظرفیت‌های اکران مدارس.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۴ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s2-c4" onclick="focusCard(this, 'grid-2')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-2')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-blue mb-6 flex items-center gap-3">
+                            <span class="bg-brand-blue/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۴</span>
+                            نظام‌مند کردن رویدادها
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-blue font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-blue">
+                                    <li>شناسایی و دسته‌بندی انواع رویدادهای قابل برگزاری (سینمایی، فرهنگی، مخاطب‌محور)</li>
+                                    <li>تدوین چارچوب و الزامات برگزاری رویداد در سینماهای شبکه</li>
+                                    <li>تعیین فرآیند پیشنهاد، تأیید، اجرا و ارزیابی رویدادها</li>
+                                    <li>تعیین نقش سینماها و واحدهای ستادی</li>
+                                    <li>تدوین معیارهای ارزیابی و اولویت‌بندی رویدادها</li>
+                                    <li>طراحی سازوکار ثبت و مستندسازی نتایج</li>
+                                    <li>تدوین دستورالعمل اولیه و اجرای حداقل یک رویداد</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-blue/10 p-4 rounded-xl border border-brand-blue/20">
+                                <h4 class="text-brand-blue font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تدوین و عملیاتی‌سازی چارچوب و نظام اولیه برگزاری رویدادهای سینمایی و فرهنگی، همراه با اجرای نمونه.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- بخش سوم: رشد و ارتقاء کیفی -->
+            <section id="section-3" class="space-y-8 section-intro">
+                <div class="glass-card p-6 md:p-8 text-center max-w-3xl mx-auto border-t-4 border-t-brand-purple">
+                    <p class="text-base md:text-lg leading-relaxed opacity-90 mb-4">
+                        با توجه به اینکه این مدیریت در مقطع فعلی فاقد سرپرست مستقل است، اقدامات این حوزه در دوره «شناخت و پایه‌گذاری» به‌صورت بین‌بخشی و با مشارکت مدیریت‌های مرتبط دنبال خواهد شد.
+                    </p>
+                    <p class="text-md leading-relaxed opacity-80 text-brand-purple font-medium">
+                        هدف: ایجاد مبنای مشترک برای استانداردسازی، ارتقای تجربه مخاطب و شناسایی نیازهای آموزشی.
+                    </p>
+                </div>
+
+                <div class="grid-container" id="grid-3">
+                    <!-- کارت ۱ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s3-c1" onclick="focusCard(this, 'grid-3')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-3')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-purple mb-6 flex items-center gap-3">
+                            <span class="bg-brand-purple/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۱</span>
+                            چارچوب استانداردسازی سینماها
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-purple font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-purple">
+                                    <li>شناسایی مؤلفه‌ها و الزامات اصلی استاندارد در اداره سینماها</li>
+                                    <li>بررسی ابعاد اجرایی، خدماتی، محیطی، مخاطبی و رویدادی</li>
+                                    <li>تعیین شاخص‌ها و معیارهای قابل ارزیابی</li>
+                                    <li>تدوین چک‌لیست جامع استانداردسازی سینماها</li>
+                                    <li>تعیین چارچوب اولیه ارزیابی و شناسایی فاصله با وضعیت مطلوب</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-purple/10 p-4 rounded-xl border border-brand-purple/20">
+                                <h4 class="text-brand-purple font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تدوین نسخه اولیه چک‌لیست استانداردسازی سینماهای بهمن سبز به‌عنوان مبنای ارزیابی و برنامه‌ریزی برای ارتقای کیفیت.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۲ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s3-c2" onclick="focusCard(this, 'grid-3')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-3')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-purple mb-6 flex items-center gap-3">
+                            <span class="bg-brand-purple/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۲</span>
+                            تدوین پروتکل تجربه مخاطب
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-purple font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-purple">
+                                    <li>ترسیم مسیر تجربه مخاطب از پیش از ورود تا خروج از سینما</li>
+                                    <li>شناسایی نقاط تماس اصلی مخاطب با سینما</li>
+                                    <li>شناسایی نقاط ضعف و چالش‌های موجود در مسیر تجربه</li>
+                                    <li>تعیین الزامات و استانداردهای مورد انتظار</li>
+                                    <li>طراحی فرآیند و چارچوب اولیه مدیریت تجربه مخاطب</li>
+                                    <li>تدوین پروتکل با مشارکت حوزه‌های راهبری و توسعه مخاطب</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-purple/10 p-4 rounded-xl border border-brand-purple/20">
+                                <h4 class="text-brand-purple font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تدوین نسخه اولیه پروتکل تجربه مخاطب با هدف ایجاد الگوی یکپارچه برای مدیریت و ارتقای تجربه.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- کارت ۳ -->
+                    <div class="glass-card p-6 md:p-8 expandable-card" id="s3-c3" onclick="focusCard(this, 'grid-3')">
+                        <button class="close-btn text-gray-500 hover:text-red-500 bg-gray-200 dark:bg-gray-800 rounded-full p-2 shadow-md" onclick="event.stopPropagation(); unfocusCard('grid-3')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        <h3 class="text-xl md:text-2xl font-bold text-brand-purple mb-6 flex items-center gap-3">
+                            <span class="bg-brand-purple/20 w-8 h-8 rounded text-sm flex items-center justify-center shrink-0">۳</span>
+                            نیازسنجی آموزشی
+                        </h3>
+                        <div class="card-content space-y-6">
+                            <div>
+                                <h4 class="text-brand-purple font-semibold mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                                    اقدامات
+                                </h4>
+                                <ul class="space-y-2 text-sm leading-relaxed opacity-90 pr-7 list-disc marker:text-brand-purple">
+                                    <li>شناسایی نیازهای دانشی و مهارتی مدیران و عوامل سینماها</li>
+                                    <li>بررسی چالش‌های مدیریتی، اجرایی و خدماتی موجود</li>
+                                    <li>شناسایی شکاف‌های مهارتی و آموزشی</li>
+                                    <li>دسته‌بندی نیازها در حوزه‌های اولویت‌دار</li>
+                                    <li>اولویت‌بندی نیازهای آموزشی بر اساس وضعیت واقعی سینماها</li>
+                                    <li>تدوین چارچوب اولیه برنامه آموزش و توانمندسازی</li>
+                                </ul>
+                            </div>
+                            <div class="bg-brand-purple/10 p-4 rounded-xl border border-brand-purple/20">
+                                <h4 class="text-brand-purple font-semibold mb-2 flex items-center gap-2">
+                                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                    دستاورد
+                                </h4>
+                                <p class="text-sm leading-relaxed">تهیه گزارش نیازسنجی آموزشی مدیران و عوامل و تعیین اولویت‌های آموزشی برای طراحی برنامه توانمندسازی.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Sidebar Toggle & Main Resize Logic
+        const sidebar = document.getElementById('sidebar');
+        const mainScroll = document.getElementById('main-scroll');
+        let isSidebarOpen = false;
+
+        function toggleSidebar() {
+            isSidebarOpen = !isSidebarOpen;
+            if(isSidebarOpen) {
+                sidebar.classList.add('open');
+                // در دسکتاپ محتوا را فشار میدهد
+                if(window.innerWidth > 768) {
+                    mainScroll.style.paddingRight = '20rem';
+                }
+            } else {
+                sidebar.classList.remove('open');
+                mainScroll.style.paddingRight = '0';
+            }
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        // Accordion Logic
+        function toggleAccordion(id, sectionId) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            const isHidden = content.classList.contains('hidden');
+            
+            // بستن بقیه
+            ['acc-1', 'acc-2', 'acc-3'].forEach(accId => {
+                document.getElementById(accId).classList.add('hidden');
+                document.getElementById('icon-' + accId).style.transform = 'rotate(0deg)';
+            });
+
+            if (isHidden) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+                
+                // بستن منو در موبایل
+                if (window.innerWidth <= 768) {
+                    toggleSidebar();
+                }
+
+                // اسکرول به ابتدای سکشن
+                const section = document.getElementById(sectionId);
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Scrolling to Specific Card from Menu
+        function scrollToCard(cardId) {
+            const card = document.getElementById(cardId);
+            const gridId = card.parentElement.id;
+            
+            // فوکوس کردن کارت
+            focusCard(card, gridId);
+            
+            // بستن سایدبار در موبایل
+            if (window.innerWidth <= 768) {
+                toggleSidebar();
+            }
+        }
+
+        // Card Focus Logic
+        function focusCard(clickedCard, gridId) {
+            // اگر قبلا فوکوس بوده، خروج از فوکوس
+            if(clickedCard.classList.contains('is-focused')) {
+                return unfocusCard(gridId);
+            }
+
+            const grid = document.getElementById(gridId);
+            const cardsArray = Array.from(grid.children);
+            const index = cardsArray.indexOf(clickedCard);
+            
+            // حذف فوکوس قبلی
+            unfocusCard(gridId);
+            
+            // اضافه کردن فوکوس به کارت کلیک شده
+            clickedCard.classList.add('is-focused');
+            
+            // منطق ریسایز ستون‌ها در دسکتاپ
+            if (window.innerWidth >= 768) {
+                // کارت‌های 0 و 2 در ستون راست، 1 و 3 در ستون چپ هستند (به دلیل rtl)
+                if (index % 2 === 0) {
+                    grid.classList.add('focus-right');
+                } else {
+                    grid.classList.add('focus-left');
+                }
+            }
+
+            // اسکرول به خود کارت بعد از اعمال انیمیشن
+            setTimeout(() => {
+                clickedCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100); 
+        }
+
+        function unfocusCard(gridId) {
+            const grid = document.getElementById(gridId);
+            const cards = grid.querySelectorAll('.expandable-card');
+            
+            cards.forEach(card => card.classList.remove('is-focused'));
+            grid.classList.remove('focus-right', 'focus-left');
+        }
+
+        // Dynamic Header Title Update using Intersection Observer
+        const headerContainer = document.getElementById('dynamic-header-container');
+        const headerTitle = document.getElementById('dynamic-header-title');
+        const headerIcon = document.getElementById('header-icon');
+
+        const sectionsData = [
+            { 
+                id: 'section-1', 
+                title: 'مدیریت راهبری سینماها', 
+                colorClass: 'text-brand-green',
+                svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>'
+            },
+            { 
+                id: 'section-2', 
+                title: 'مدیریت توسعه مخاطب', 
+                colorClass: 'text-brand-blue',
+                svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>'
+            },
+            { 
+                id: 'section-3', 
+                title: 'رشد و ارتقاء کیفی', 
+                colorClass: 'text-brand-purple',
+                svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>'
+            }
+        ];
+
+        const observerOptions = {
+            root: document.getElementById('main-scroll'),
+            rootMargin: '-30% 0px -60% 0px', 
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const activeSection = sectionsData.find(s => s.id === entry.target.id);
+                    if (activeSection) {
+                        headerTitle.textContent = activeSection.title;
+                        headerContainer.className = `flex items-center gap-3 transition-colors duration-300 ${activeSection.colorClass}`;
+                        headerIcon.innerHTML = activeSection.svg;
+                    }
+                }
+            });
+        }, observerOptions);
+
+        sectionsData.forEach(sec => {
+            const el = document.getElementById(sec.id);
+            if(el) observer.observe(el);
+        });
+        
+        // Window Resize Handler for Sidebar Push Logic
+        window.addEventListener('resize', () => {
+            if(isSidebarOpen) {
+                if(window.innerWidth > 768) {
+                    mainScroll.style.paddingRight = '20rem';
+                } else {
+                    mainScroll.style.paddingRight = '0';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
