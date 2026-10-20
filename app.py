@@ -1,0 +1,1580 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import requests
+import json
+import copy
+from datetime import datetime
+
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="سامانه جامع ارزیابی و راهبری سینماها (بهمن سبز)",
+    page_icon="🎬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- Soft Minimal & Curved UI Design System (Zero Sharp Edges) ---
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stAppHeader {display: none !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    
+    @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+    
+    :root {
+        --brand-green: #00a86b;
+        --brand-emerald: #10b981;
+        --brand-dark: #064e3b;
+        --brand-soft: #ecfdf5;
+        --bg-canvas: #f4f7f6;
+        --card-bg: #ffffff;
+        --text-main: #1e293b;
+        --text-muted: #64748b;
+    }
+
+    .stApp {
+        background-color: var(--bg-canvas) !important;
+        background-image: 
+            radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.07) 0%, transparent 55%),
+            repeating-radial-gradient(circle at 50% -10%, transparent 0, transparent 60px, rgba(16, 185, 129, 0.025) 61px, transparent 62px);
+    }
+
+    html, body, [class*="css"], div, h1, h2, h3, h4, h5, h6, p, span, label, table, th, td, input, textarea, button {
+        font-family: 'Vazirmatn', sans-serif !important;
+        direction: rtl;
+        text-align: right;
+    }
+
+    /* هدر کپسولی شناور (Floating Top Header) */
+    .top-floating-nav {
+        background: #ffffff;
+        border-radius: 28px;
+        padding: 14px 28px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 30px -10px rgba(6, 78, 59, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.15);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+
+    .brand-logo-pill {
+        background: linear-gradient(135deg, #00a86b 0%, #047857 100%);
+        color: #ffffff !important;
+        padding: 8px 22px;
+        border-radius: 999px;
+        font-weight: 800;
+        font-size: 1.05rem;
+        box-shadow: 0 6px 16px rgba(0, 168, 107, 0.25);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* بنر قهرمان با کارت‌های لایه‌ای منحنی (Layered Hero Card) */
+    .hero-curved-banner {
+        background: linear-gradient(135deg, #064e3b 0%, #00a86b 100%);
+        border-radius: 32px;
+        padding: 30px 36px;
+        color: white;
+        position: relative;
+        margin-bottom: 28px;
+        box-shadow: 
+            10px 10px 0px -2px rgba(4, 120, 87, 0.35),
+            20px 20px 0px -4px rgba(6, 78, 59, 0.18),
+            0 20px 40px -15px rgba(6, 78, 59, 0.25);
+        overflow: hidden;
+    }
+    .hero-curved-banner h1, .hero-curved-banner h2, .hero-curved-banner p, .hero-curved-banner span {
+        color: #ffffff !important;
+    }
+
+    /* کارت‌های آرک دسته‌بندی ۵ محور (Arch Category Cards) */
+    .arch-card {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 65px 65px 24px 24px;
+        padding: 22px 12px 18px 12px;
+        text-align: center !important;
+        border: 1.5px solid #e2e8f0;
+        box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.05);
+        transition: all 0.25s ease;
+        margin-bottom: 12px;
+    }
+    .arch-card:hover {
+        transform: translateY(-5px);
+        border-color: #10b981;
+        box-shadow: 0 14px 28px -8px rgba(16, 185, 129, 0.18);
+    }
+    .arch-icon-circle {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        margin: 0 auto 10px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.65rem;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+    }
+
+    /* کارت‌های متریک کپسولی و فوق منحنی */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border-radius: 26px !important;
+        padding: 18px 22px !important;
+        border: 1px solid rgba(226, 232, 240, 0.9) !important;
+        box-shadow: 0 10px 25px -8px rgba(15, 23, 42, 0.05) !important;
+        transition: transform 0.2s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+        border-color: rgba(16, 185, 129, 0.4) !important;
+    }
+
+    /* پنل فیلتر با زبانه منحنی در بالا (Notched Filter Header Card) */
+    .notched-section-box {
+        background: #ffffff;
+        border-radius: 28px;
+        border: 2px solid #10b981;
+        padding: 24px;
+        margin-bottom: 24px;
+        position: relative;
+        box-shadow: 0 12px 30px -10px rgba(16, 185, 129, 0.08);
+    }
+    .notched-tab-title {
+        background: #ecfdf5;
+        color: #065f46 !important;
+        border: 2px solid #10b981;
+        border-top: none;
+        padding: 6px 26px;
+        border-radius: 0 0 20px 20px;
+        display: inline-block;
+        font-weight: 800;
+        font-size: 0.95rem;
+        margin-top: -24px;
+        margin-bottom: 16px;
+    }
+
+    /* کارت شاخص‌های پروفایل با لبه منحنی سبز */
+    .ind-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-right: 6px solid #10b981;
+        border-radius: 22px;
+        padding: 16px 22px;
+        margin-bottom: 12px;
+        box-shadow: 0 6px 18px -6px rgba(15, 23, 42, 0.04);
+    }
+
+    /* کپسول‌های وضعیت (Pill Badges) */
+    .badge-high {background-color: #d1fae5; color: #065f46; padding: 5px 16px; border-radius: 999px; font-size: 0.85em; font-weight: 800;}
+    .badge-mid {background-color: #fef3c7; color: #92400e; padding: 5px 16px; border-radius: 999px; font-size: 0.85em; font-weight: 800;}
+    .badge-low {background-color: #fee2e2; color: #991b1b; padding: 5px 16px; border-radius: 999px; font-size: 0.85em; font-weight: 800;}
+    .pill-meta {background-color: #f1f5f9; color: #334155; padding: 6px 14px; border-radius: 999px; font-size: 0.85em; font-weight: 600; display: inline-block; margin-left: 6px;}
+
+    /* گرد کردن کامل تمام ورودی‌ها، سلکت‌باکس‌ها، دکمه‌ها و اکسپندرها */
+    .stButton > button {
+        border-radius: 999px !important;
+        padding: 10px 26px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        background: linear-gradient(135deg, #00a86b 0%, #059669 100%) !important;
+        color: white !important;
+        box-shadow: 0 8px 20px -6px rgba(0, 168, 107, 0.4) !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 24px -6px rgba(0, 168, 107, 0.55) !important;
+    }
+
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"] > div,
+    textarea {
+        border-radius: 18px !important;
+        border-color: #cbd5e1 !important;
+        background-color: #f8fafc !important;
+    }
+
+    div[data-testid="stExpander"] {
+        background: #ffffff !important;
+        border-radius: 24px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 6px 16px -6px rgba(0,0,0,0.03) !important;
+        overflow: hidden !important;
+        margin-bottom: 14px !important;
+    }
+
+    /* تب‌های کپسولی (Pill Tabs) */
+    button[data-baseweb="tab"] {
+        border-radius: 999px !important;
+        padding: 8px 20px !important;
+        margin-left: 8px !important;
+        background-color: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        font-weight: 700 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #00a86b 0%, #10b981 100%) !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+        box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3) !important;
+    }
+
+    /* نوار کناری (Sidebar) با کارت‌های منحنی نرم */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-left: 1px solid #e2e8f0 !important;
+    }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label {
+        background-color: #f8fafc;
+        border-radius: 999px;
+        padding: 10px 18px;
+        margin-bottom: 8px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+    section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        border-color: #10b981;
+        background-color: #ecfdf5;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# =====================================================================
+# ۱. مدل استاندارد و پیش‌فرض شاخص‌ها و چک‌لیست‌ها (بر اساس سند PDF بهمن سبز)
+# =====================================================================
+def get_default_config():
+    return {
+        "axes": [
+            {
+                "id": "location",
+                "title": "موقعیت و دسترسی",
+                "weight": 20.0,
+                "indicators": [
+                    {
+                        "id": "loc_1", "title": "۱. وضعیت دسترسی به سینما", "weight": 25.0,
+                        "checklist": [
+                            "دسترسی مناسب از مسیرهای اصلی شهر",
+                            "دسترسی با خودروی شخصی",
+                            "دسترسی با حمل و نقل عمومی (مترو/اتوبوس)",
+                            "دسترسی با تاکسی و تاکسی اینترنتی",
+                            "دسترسی پیاده به سینما",
+                            "سهولت ورود و خروج خودرو و مخاطب",
+                            "مناسب بودن مسیر دسترسی در ساعات پرتردد",
+                            "وجود تابلو و علائم راهنمای مسیر در محدوده سینما"
+                        ]
+                    },
+                    {
+                        "id": "loc_2", "title": "۲. وضعیت پارکینگ", "weight": 20.0,
+                        "checklist": [
+                            "دارای پارکینگ اختصاصی با ظرفیت کافی",
+                            "نزدیکی به پارکینگ عمومی شبانه‌روزی",
+                            "امکان پارک حاشیه‌ای امن در خیابان‌های اطراف",
+                            "امنیت، روشنایی و خط‌کشی مناسب پارکینگ"
+                        ]
+                    },
+                    {
+                        "id": "loc_3", "title": "۳. موقعیت سینما نسبت به مراکز و نقاط مهم شهری", "weight": 15.0,
+                        "checklist": [
+                            "نزدیکی به مراکز تجاری، فرهنگی و دانشگاهی",
+                            "قرارگیری در قلب تپنده شهری یا قطب‌های تفریحی",
+                            "همجواری با کافه‌ها، رستوران‌ها و مراکز خرید"
+                        ]
+                    },
+                    {
+                        "id": "loc_4", "title": "۴. میزان تردد و دسترسی‌پذیری محدوده", "weight": 15.0,
+                        "checklist": [
+                            "تردد بالای پیاده (پاخور مناسب) در محدوده",
+                            "قرار نداشتن در گره‌های کور ترافیکی یا طرح‌های محدودکننده شدید",
+                            "امنیت اجتماعی و روشنایی معابر اطراف در شب"
+                        ]
+                    },
+                    {
+                        "id": "loc_5", "title": "۵. قابلیت دیده شدن و دسترسی بصری سینما", "weight": 15.0,
+                        "checklist": [
+                            "دید مستقیم سردر از خیابان اصلی",
+                            "عدم وجود مانع بصری (پلاکارهای مزاحم، درختان هرس‌نشده و...)",
+                            "نورپردازی شاخص و جذاب سردر در شب"
+                        ]
+                    },
+                    {
+                        "id": "loc_6", "title": "۶. وضعیت دسترسی برای افراد دارای معلولیت", "weight": 10.0,
+                        "checklist": [
+                            "وجود رمپ استاندارد در ورودی اصلی و سالن‌ها",
+                            "آسانسور یا بالابر قابل دسترس برای ویلچر",
+                            "جایگاه ویژه ویلچر در سالن‌های نمایش",
+                            "سرویس بهداشتی فرنگی ویژه توان‌خواهان"
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "physical",
+                "title": "وضعیت فیزیکی، نوسازی و کیفیت فضای عمومی",
+                "weight": 25.0,
+                "indicators": [
+                    {
+                        "id": "phy_1", "title": "۱. نمای بیرونی و سردر", "weight": 12.0,
+                        "checklist": [
+                            "کیفیت و سلامت مصالح نما",
+                            "زیبایی طراحی بصری و معماری سردر",
+                            "تابلو روان یا تلویزیون شهری سردر",
+                            "نورپردازی استاندارد نمای بیرونی",
+                            "ویترین‌ها و قاب‌های تبلیغاتی استاندارد فیلم‌ها",
+                            "نظافت و شستشوی دوره‌ای نما",
+                            "عدم فرسودگی، ترک‌خوردگی یا ریزش نما",
+                            "هماهنگی بصری با سیمای شهری"
+                        ]
+                    },
+                    {
+                        "id": "phy_2", "title": "۲. وضعیت لابی و فضای انتظار", "weight": 15.0,
+                        "checklist": [
+                            "مساحت متناسب لابی با ظرفیت کل سالن‌ها",
+                            "مبلمان و صندلی‌های انتظار کافی و راحت",
+                            "سیستم تهویه مطبوع، سرمایش و گرمایش لابی",
+                            "دکوراسیون، زیبایی بصری و فضای سبز داخلی",
+                            "پخش تیزر و موسیقی مناسب در فضای انتظار"
+                        ]
+                    },
+                    {
+                        "id": "phy_3", "title": "۳. وضعیت عمومی سالن‌های نمایش", "weight": 15.0,
+                        "checklist": [
+                            "سلامت و تمیزی دیوارپوش‌ها و پنل‌های آکوستیک",
+                            "کیفیت کف‌پوش و موکت سالن‌ها",
+                            "شیب استاندارد سالن و زاویه دید بدون مانع",
+                            "سیستم تهویه و گردش هوای مطبوع داخل سالن",
+                            "درب‌های خروج اضطراری استاندارد و بدون مانع"
+                        ]
+                    },
+                    {
+                        "id": "phy_4", "title": "۴. کیفیت صندلی‌های سالن", "weight": 15.0,
+                        "checklist": [
+                            "راحتی و استاندارد ارگونومیک صندلی‌ها",
+                            "سلامت روکش، فوم و دسته‌های صندلی",
+                            "فاصله استاندارد بین ردیف‌ها (فضای پا)",
+                            "شماره‌گذاری خوانا روی صندلی و ردیف‌ها (ترجیحاً شب‌نما)",
+                            "وجود جالیوانی سالم در دسته‌ها"
+                        ]
+                    },
+                    {
+                        "id": "phy_5", "title": "۵. فضاهای عمومی و راهروها", "weight": 10.0,
+                        "checklist": [
+                            "عرض مناسب راهروهای ورودی و خروجی",
+                            "روشنایی راهنمای کف پله‌ها در تاریکی (Step Light)",
+                            "عدم وجود موانع فیزیکی در مسیر تردد مخاطبان"
+                        ]
+                    },
+                    {
+                        "id": "phy_6", "title": "۶. سرویس‌های بهداشتی", "weight": 10.0,
+                        "checklist": [
+                            "تعداد چشمه متناسب با ظرفیت سینما",
+                            "بهداشت، نظافت مستمر و تهویه مناسب",
+                            "سلامت شیرآلات، روشویی، خشک‌کن و مایع دستشویی",
+                            "وجود سرویس بهداشتی فرنگی"
+                        ]
+                    },
+                    {
+                        "id": "phy_7", "title": "۷. نورپردازی و روشنایی‌های عمومی", "weight": 8.0,
+                        "checklist": [
+                            "کیفیت و شدت نور در لابی و فضاهای عمومی",
+                            "سیستم دیمر (کم‌نور شدن تدریجی) در سالن‌های نمایش",
+                            "سلامت کامل لامپ‌ها و پنل‌های سقفی"
+                        ]
+                    },
+                    {
+                        "id": "phy_8", "title": "۸. تابلوها، علائم و راهنمایی مخاطب", "weight": 7.0,
+                        "checklist": [
+                            "تابلوهای راهنمای مسیر سالن‌ها، بوفه و سرویس بهداشتی",
+                            "علائم استاندارد خروج اضطراری (Exit) روشن",
+                            "تابلو اعلام سانس‌ها و قوانین سینما"
+                        ]
+                    },
+                    {
+                        "id": "phy_9", "title": "۹. نظافت و نگهداشت", "weight": 8.0,
+                        "checklist": [
+                            "برنامه منظم نظافت بین سانس‌ها",
+                            "سطل‌های زباله کافی و تفکیک‌شده",
+                            "تعمیر و نگهداری سریع خرابی‌های جزئی ابنیه"
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "technical",
+                "title": "وضعیت فنی و کیفیت تجهیزات سینما",
+                "weight": 25.0,
+                "indicators": [
+                    {
+                        "id": "tech_1", "title": "۱. وضعیت تجهیزات نمایش", "weight": 25.0,
+                        "checklist": [
+                            "استاندارد نمایش D-Cinema (یا E-Cinema به‌روز)",
+                            "منبع نور پروژکتور لیزری (Laser) یا لامپی با ساعت کارکرد استاندارد",
+                            "سلامت لنز، سرور پخش و سیستم خنک‌کننده پروژکتور",
+                            "وجود سیستم برق اضطراری (UPS) برای تجهیزات پخش"
+                        ]
+                    },
+                    {
+                        "id": "tech_2", "title": "۲. کیفیت تصویر", "weight": 20.0,
+                        "checklist": [
+                            "شدت روشنایی و کنتراست استاندارد تصویر روی پرده",
+                            "وضوح (Focus) و تفکیک‌پذیری یکنواخت در کل کادر",
+                            "کالیبراسیون صحیح رنگ‌ها و عدم وجود پیکسل سوخته یا لکه"
+                        ]
+                    },
+                    {
+                        "id": "tech_3", "title": "۳. وضعیت پرده نمایش", "weight": 15.0,
+                        "checklist": [
+                            "جنس استاندارد پرده (Silver / Matte White) متناسب با سالن",
+                            "عدم وجود پارگی، لکه، چین‌خوردگی یا تغییر رنگ",
+                            "ابعاد و کادر (Masking) استاندارد پرده"
+                        ]
+                    },
+                    {
+                        "id": "tech_4", "title": "۴. وضعیت سیستم صوتی", "weight": 20.0,
+                        "checklist": [
+                            "نوع و استاندارد سیستم صوتی (Dolby 5.1 / 7.1 / Stereo)",
+                            "کیفیت و وضوح صدا در دیالوگ‌ها و افکت‌ها",
+                            "توزیع و یکنواختی صدا در تمام نقاط سالن",
+                            "شدت و تراز مناسب صدا (SPL استاندارد)",
+                            "عدم وجود نویز، خش، اکو یا اختلال صوتی",
+                            "وضعیت آکوستیک سالن و جذب انعکاس‌های مزاحم",
+                            "وضعیت بلندگوها، ساب‌ووفرها و آمپلی‌فایرها",
+                            "وضعیت کابل‌ها و اتصالات استاندارد صوتی",
+                            "تنظیم و کالیبراسیون دوره‌ای سیستم صوتی",
+                            "وضعیت نگهداری و سلامت کلی سیستم صوتی"
+                        ]
+                    },
+                    {
+                        "id": "tech_5", "title": "۵. وضعیت تجهیزات فنی و جانبی", "weight": 10.0,
+                        "checklist": [
+                            "استاندارد بودن اتاق فرمان (پروژکتور) و تهویه اختصاصی آن",
+                            "شیشه استاندارد پرتاب نور (Port Glass)",
+                            "سیستم شبکه و زیرساخت دریافت محتوا"
+                        ]
+                    },
+                    {
+                        "id": "tech_6", "title": "۶. وضعیت نگهداری و سرویس تجهیزات", "weight": 10.0,
+                        "checklist": [
+                            "برنامه منظم سرویس دوره‌ای (PM) و غبارروبی فیلترها",
+                            "ثبت شناسنامه تعمیرات و ساعت کارکرد لامپ/لیزر",
+                            "دسترسی سریع به پشتیبان فنی"
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "operations",
+                "title": "راهبری و بهره‌برداری",
+                "weight": 15.0,
+                "indicators": [
+                    {
+                        "id": "ops_1", "title": "۱. وضعیت برنامه‌ریزی و اجرای اکران", "weight": 20.0,
+                        "checklist": [
+                            "تنوع فیلم‌های اکران شده متناسب با سلیقه مخاطبان منطقه",
+                            "نظم و دقت در شروع رأس ساعت سانس‌ها",
+                            "استفاده بهینه از ظرفیت سالن‌ها در ساعات پیک و غیرپیک"
+                        ]
+                    },
+                    {
+                        "id": "ops_2", "title": "۲. وضعیت فروش و بلیت‌فروشی", "weight": 20.0,
+                        "checklist": [
+                            "اتصال پایدار به سامانه‌های فروش آنلاین بلیت",
+                            "وجود کیوسک‌های چاپ بلیت خودکار (گیشه آنلاین) سالم",
+                            "سرعت و دقت عملکرد گیشه حضوری و کارت‌خوان‌ها"
+                        ]
+                    },
+                    {
+                        "id": "ops_3", "title": "۳. وضعیت خدمات و پذیرش مخاطب", "weight": 15.0,
+                        "checklist": [
+                            "آراستگی و پوشش فرم پرسنل پذیرش و کنترل بلیت",
+                            "برخورد محترمانه، تکریم مخاطب و راهنمایی صحیح",
+                            "فرآیند دریافت و رسیدگی به انتقادات و پیشنهادات"
+                        ]
+                    },
+                    {
+                        "id": "ops_4", "title": "۴. ظرفیت و وضعیت درآمدهای جانبی", "weight": 15.0,
+                        "checklist": [
+                            "بهره‌برداری از ظرفیت تبلیغات محیطی و تیزرهای قبل از فیلم",
+                            "درآمدزایی از اجاره فضاهای تجاری و غرفه‌ها",
+                            "جذب ارگان‌ها، مدارس و اکران‌های اختصاصی"
+                        ]
+                    },
+                    {
+                        "id": "ops_5", "title": "۵. منابع انسانی و ساختار عملیاتی", "weight": 15.0,
+                        "checklist": [
+                            "تعداد نیروی انسانی موجود",
+                            "تناسب تعداد نیرو با ظرفیت و حجم فعالیت سینما",
+                            "پوشش پست‌ها و وظایف عملیاتی مورد نیاز",
+                            "تفکیک و مشخص بودن مسئولیت‌ها",
+                            "پوشش نیروی انسانی در شیفت‌ها و ساعات فعالیت",
+                            "وضعیت نیروهای تخصصی و فنی مورد نیاز (اپراتور مجرب)",
+                            "پوشش نیرو در بخش‌های گیشه، سالن، خدمات و بوفه",
+                            "عدم وجود کمبود شدید یا مازاد غیرمنطقی نیروی انسانی"
+                        ]
+                    },
+                    {
+                        "id": "ops_6", "title": "۶. ظرفیت‌های مدیریت بحران و شرایط اضطراری", "weight": 15.0,
+                        "checklist": [
+                            "سیستم اعلام و اطفای حریق هوشمند و کپسول‌های شارژشده",
+                            "آموزش پرسنل برای تخلیه اضطراری سالن‌ها",
+                            "جعبه کمک‌های اولیه، بیمه مسئولیت مدنی و روشنایی اضطراری"
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "amenities",
+                "title": "امکانات و فضاهای جانبی سینما",
+                "weight": 15.0,
+                "indicators": [
+                    {
+                        "id": "amen_1", "title": "۱. بوفه و امکانات پذیرایی", "weight": 25.0,
+                        "checklist": [
+                            "وجود بوفه فعال در سینما",
+                            "نوع خدمات پذیرایی (گرم و سرد استاندارد)",
+                            "مساحت و ظرفیت مناسب بوفه",
+                            "تجهیزات و امکانات به‌روز بوفه",
+                            "تنوع اقلام قابل ارائه و کیفیت محصولات",
+                            "فضای نشستن و پذیرایی اختصاصی",
+                            "وضعیت ظاهری، بهداشت و نظافت بوفه",
+                            "وضعیت تجهیزات و نگهداری مواد غذایی",
+                            "دسترسی مناسب مخاطبان به بوفه",
+                            "امکان ارائه خدمات مستمر در تمام زمان فعالیت سینما"
+                        ]
+                    },
+                    {
+                        "id": "amen_2", "title": "۲. کافه و رستوران", "weight": 20.0,
+                        "checklist": [
+                            "وجود کافه یا رستوران مجزا در مجموعه",
+                            "کیفیت منو، فضاسازی و جذابیت برای مخاطب سینمایی",
+                            "هم‌افزایی کافه با رویدادهای نقد و بررسی فیلم"
+                        ]
+                    },
+                    {
+                        "id": "amen_3", "title": "۳. فضای بازی و سرگرمی", "weight": 15.0,
+                        "checklist": [
+                            "وجود خانه بازی کودک یا گیم‌نت/سرگرمی",
+                            "ایمنی و استاندارد تجهیزات بازی"
+                        ]
+                    },
+                    {
+                        "id": "amen_4", "title": "۴. فضای VIP (در صورت وجود)", "weight": 15.0,
+                        "checklist": [
+                            "وجود سالن و لابی اختصاصی VIP",
+                            "پذیرایی اختصاصی و صندلی‌های مبلی راحت/تخت‌خواب‌شو"
+                        ]
+                    },
+                    {
+                        "id": "amen_5", "title": "۵. ظرفیت برگزاری همایش و تئاتر", "weight": 15.0,
+                        "checklist": [
+                            "وجود سن (Stage) مناسب و اتاق گریم/پشت صحنه",
+                            "نورپردازی موضعی و سیستم صوتی کنفرانسی/تئاتری"
+                        ]
+                    },
+                    {
+                        "id": "amen_6", "title": "۶. امکانات فرهنگی و آموزشی", "weight": 10.0,
+                        "checklist": [
+                            "فروشگاه کتاب و محصولات فرهنگی (کتاب‌فروشی/گالری)",
+                            "فضای برگزاری کارگاه‌های آموزشی و نشست‌های فرهنگی"
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+
+# =====================================================================
+# ۲. توابع ارتباط با دیتابیس Supabase و مدیریت State
+# =====================================================================
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "").strip().rstrip('/')
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "").strip()
+
+def get_headers():
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+def load_config():
+    if "app_config" in st.session_state:
+        return st.session_state.app_config
+    
+    default_cfg = get_default_config()
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            url = f"{SUPABASE_URL}/rest/v1/app_config?id=eq.1&select=*"
+            res = requests.get(url, headers=get_headers(), timeout=5)
+            if res.status_code == 200 and len(res.json()) > 0:
+                cfg_data = res.json()[0].get("config_data")
+                if cfg_data and "axes" in cfg_data:
+                    st.session_state.app_config = cfg_data
+                    return cfg_data
+        except Exception:
+            pass
+    st.session_state.app_config = default_cfg
+    return default_cfg
+
+def save_config(new_cfg):
+    st.session_state.app_config = copy.deepcopy(new_cfg)
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            # Upsert into app_config (id=1)
+            headers = get_headers()
+            headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+            payload = {"id": 1, "config_data": new_cfg, "updated_at": datetime.utcnow().isoformat()}
+            res = requests.post(f"{SUPABASE_URL}/rest/v1/app_config", headers=headers, json=payload, timeout=6)
+            if res.status_code in [200, 201]:
+                return True, "تنظیمات و وزن‌ها در دیتابیس Supabase ذخیره شد."
+            return False, f"ذخیره در حافظه موقت انجام شد (جدول app_config در دیتابیس یافت نشد یا خطا داشت: {res.status_code})."
+        except Exception as e:
+            return False, f"ذخیره در حافظه موقت انجام شد ({str(e)})"
+    return True, "تنظیمات در حافظه جلسه فعلی (Local Session) ذخیره شد."
+
+def fetch_cinemas():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None, "تنظیمات Secrets انجام نشده است."
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/cinemas?select=*&order=id.asc"
+        res = requests.get(url, headers=get_headers(), timeout=6)
+        if res.status_code == 200:
+            return pd.DataFrame(res.json()), "🟢 متصل به دیتابیس Supabase"
+        elif res.status_code == 401:
+            return None, "خطای 401: کلید API نامعتبر است"
+        else:
+            return None, f"خطای {res.status_code}: {res.text}"
+    except Exception as e:
+        return None, f"خطای ارتباط: {str(e)}"
+
+def upsert_cinema_db(cinema_dict, cinema_id=None):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return False, "کلیدهای Supabase تنظیم نشده‌اند."
+    try:
+        if cinema_id is not None:
+            url = f"{SUPABASE_URL}/rest/v1/cinemas?id=eq.{cinema_id}"
+            res = requests.patch(url, headers=get_headers(), json=cinema_dict, timeout=7)
+        else:
+            url = f"{SUPABASE_URL}/rest/v1/cinemas"
+            res = requests.post(url, headers=get_headers(), json=cinema_dict, timeout=7)
+            
+        if res.status_code in [200, 201, 204]:
+            return True, "با موفقیت در دیتابیس Supabase ثبت شد."
+        else:
+            # Fallback if evaluation_details column does not exist yet in old v4 table
+            if "evaluation_details" in res.text and "evaluation_details" in cinema_dict:
+                fallback_dict = {k: v for k, v in cinema_dict.items() if k != "evaluation_details"}
+                if cinema_id is not None:
+                    res2 = requests.patch(f"{SUPABASE_URL}/rest/v1/cinemas?id=eq.{cinema_id}", headers=get_headers(), json=fallback_dict, timeout=7)
+                else:
+                    res2 = requests.post(f"{SUPABASE_URL}/rest/v1/cinemas", headers=get_headers(), json=fallback_dict, timeout=7)
+                if res2.status_code in [200, 201, 204]:
+                    return True, "ذخیره شد (توجه: برای ذخیره جزئیات ریز چک‌لیست‌ها، اسکریپت SQL نسخه v5 را در Supabase اجرا کنید)."
+            return False, f"خطای دیتابیس ({res.status_code}): {res.text}"
+    except Exception as e:
+        return False, f"خطای ارتباط: {str(e)}"
+
+def delete_cinema_db(cinema_id):
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return False, "عدم اتصال به دیتابیس"
+    try:
+        url = f"{SUPABASE_URL}/rest/v1/cinemas?id=eq.{cinema_id}"
+        res = requests.delete(url, headers=get_headers(), timeout=6)
+        return res.status_code in [200, 204], f"وضعیت: {res.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+# =====================================================================
+# ۳. آماده‌سازی داده‌های پایه و محاسبه پویا بر اساس وزن‌های لحظه‌ای
+# =====================================================================
+config = load_config()
+
+if 'local_data' not in st.session_state:
+    st.session_state.local_data = pd.DataFrame([
+        {
+            "id": 1, "name": "سینما بهمن تهران", "province": "تهران", "city": "تهران",
+            "address": "میدان انقلاب، ابتدای خیابان آزادی", "halls": 4,
+            "hall_seats_detail": "سالن ۱: ۳۰۰، سالن ۲: ۲۵۰، سالن ۳: ۱۵۰، سالن ۴: ۱۵۰",
+            "total_seats": 850, "nominal_capacity": 900, "operational_seats": 800, "daily_shows": 24,
+            "score_location": 4.25, "score_physical": 3.85, "score_technical": 4.10,
+            "score_operations": 4.40, "score_amenities": 3.60,
+            "evaluation_details": {
+                "indicators": {
+                    "loc_1": {"score": 4.5, "checked": ["دسترسی مناسب از مسیرهای اصلی شهر", "دسترسی با حمل و نقل عمومی (مترو/اتوبوس)", "دسترسی پیاده به سینما"]},
+                    "tech_1": {"score": 4.5, "checked": ["استاندارد نمایش D-Cinema (یا E-Cinema به‌روز)"]},
+                    "tech_4": {"score": 4.2, "checked": ["نوع و استاندارد سیستم صوتی (Dolby 5.1 / 7.1 / Stereo)", "کیفیت و وضوح صدا در دیالوگ‌ها و افکت‌ها"]}
+                },
+                "notes": "سینما در موقعیت بسیار عالی شهری قرار دارد."
+            }
+        },
+        {
+            "id": 2, "name": "سینما آزادی تهران", "province": "تهران", "city": "تهران",
+            "address": "خیابان بهشتی، نبش وزرا", "halls": 5,
+            "hall_seats_detail": "سالن ۱: ۴۰۰، سالن ۲: ۳۰۰، سالن ۳: ۲۰۰، سالن ۴: ۱۰۰، سالن ۵: ۱۰۰",
+            "total_seats": 1100, "nominal_capacity": 1150, "operational_seats": 1050, "daily_shows": 30,
+            "score_location": 4.80, "score_physical": 4.55, "score_technical": 4.70,
+            "score_operations": 4.65, "score_amenities": 4.40,
+            "evaluation_details": {
+                "indicators": {
+                    "loc_1": {"score": 4.8, "checked": ["دسترسی مناسب از مسیرهای اصلی شهر", "دسترسی با خودروی شخصی", "دسترسی با حمل و نقل عمومی (مترو/اتوبوس)"]},
+                    "tech_1": {"score": 5.0, "checked": ["استاندارد نمایش D-Cinema (یا E-Cinema به‌روز)", "منبع نور پروژکتور لیزری (Laser) یا لامپی با ساعت کارکرد استاندارد"]}
+                },
+                "notes": "یکی از استانداردترین مجتمع‌های سینمایی کشور."
+            }
+        },
+        {
+            "id": 3, "name": "سینما هویزه مشهد", "province": "خراسان رضوی", "city": "مشهد",
+            "address": "خیابان دانشگاه، چهارراه گلستان", "halls": 8,
+            "hall_seats_detail": "سالن ۱: ۵۰۰، سالن ۲: ۳۰۰، سالن‌های ۳ تا ۸: ۱۰۰ صندلی",
+            "total_seats": 1400, "nominal_capacity": 1450, "operational_seats": 1350, "daily_shows": 42,
+            "score_location": 4.60, "score_physical": 4.75, "score_technical": 4.85,
+            "score_operations": 4.50, "score_amenities": 4.60,
+            "evaluation_details": {"indicators": {}, "notes": "مجهز به سالن VIP و تجهیزات مدرن."}
+        }
+    ])
+
+db_df, db_status = fetch_cinemas()
+using_db = False
+if db_df is not None and not db_df.empty:
+    df = db_df.copy()
+    using_db = True
+else:
+    df = st.session_state.local_data.copy()
+
+# اطمینان از وجود ستون‌های استاندارد و تبدیل ایمن انواع داده (رفع قطعی باگ Plotly ValueError)
+req_cols = {
+    'score_location': 3.5, 'score_physical': 3.5, 'score_technical': 3.5,
+    'score_operations': 3.5, 'score_amenities': 3.5,
+    'total_seats': 100, 'operational_seats': 100, 'nominal_capacity': 100,
+    'halls': 1, 'daily_shows': 10, 'province': 'نامشخص', 'city': 'نامشخص',
+    'address': 'ثبت نشده', 'hall_seats_detail': ''
+}
+for col, val in req_cols.items():
+    if col not in df.columns:
+        df[col] = val
+
+if 'evaluation_details' not in df.columns:
+    df['evaluation_details'] = [{} for _ in range(len(df))]
+else:
+    def parse_json_col(x):
+        if isinstance(x, dict):
+            return x
+        if isinstance(x, str) and x.strip():
+            try:
+                return json.loads(x)
+            except Exception:
+                return {}
+        return {}
+    df['evaluation_details'] = df['evaluation_details'].apply(parse_json_col)
+
+# تابع محاسبه پویا امتیازات محورها و امتیاز کل هر سینما بر اساس وزن‌های لحظه‌ای پنل تنظیمات
+def compute_dynamic_scores(row, cfg):
+    details = row.get('evaluation_details', {}) or {}
+    ind_data = details.get('indicators', {}) or {}
+    custom_axis_scores = details.get('axis_scores', {}) or {}
+    
+    col_map = {
+        "location": "score_location",
+        "physical": "score_physical",
+        "technical": "score_technical",
+        "operations": "score_operations",
+        "amenities": "score_amenities"
+    }
+    
+    axis_results = {}
+    total_axis_weight = sum(float(ax.get("weight", 0)) for ax in cfg.get("axes", []))
+    if total_axis_weight <= 0:
+        total_axis_weight = 100.0
+        
+    weighted_sum = 0.0
+    
+    for ax in cfg.get("axes", []):
+        ax_id = ax["id"]
+        ax_w = float(ax.get("weight", 0))
+        inds = ax.get("indicators", [])
+        
+        # بررسی اینکه آیا امتیاز زیرشاخص‌های این محور ثبت شده است یا خیر
+        total_ind_w = 0.0
+        ind_weighted_sum = 0.0
+        has_ind_scores = False
+        
+        for ind in inds:
+            i_id = ind["id"]
+            i_w = float(ind.get("weight", 1.0))
+            if i_id in ind_data and "score" in ind_data[i_id]:
+                has_ind_scores = True
+                ind_weighted_sum += float(ind_data[i_id]["score"]) * i_w
+                total_ind_w += i_w
+                
+        if has_ind_scores and total_ind_w > 0:
+            ax_score = round(ind_weighted_sum / total_ind_w, 2)
+        elif ax_id in custom_axis_scores:
+            ax_score = float(custom_axis_scores[ax_id])
+        elif ax_id in col_map and col_map[ax_id] in row:
+            ax_score = float(pd.to_numeric(row[col_map[ax_id]], errors='coerce') or 3.5)
+        else:
+            ax_score = 3.5
+            
+        axis_results[ax_id] = round(ax_score, 2)
+        weighted_sum += ax_score * (ax_w / total_axis_weight)
+        
+    return round(weighted_sum, 2), axis_results
+
+# اعمال محاسبات پویا روی کل دیتافریم
+dynamic_totals = []
+for idx, r in df.iterrows():
+    w_score, ax_res = compute_dynamic_scores(r, config)
+    dynamic_totals.append(w_score)
+    for k, col_name in [("location", "score_location"), ("physical", "score_physical"), 
+                        ("technical", "score_technical"), ("operations", "score_operations"), 
+                        ("amenities", "score_amenities")]:
+        if k in ax_res:
+            df.at[idx, col_name] = ax_res[k]
+
+df['weighted_score'] = pd.to_numeric(dynamic_totals, errors='coerce').fillna(0.0).round(2)
+df['total_seats'] = pd.to_numeric(df['total_seats'], errors='coerce').fillna(100).astype(int)
+df['operational_seats'] = pd.to_numeric(df['operational_seats'], errors='coerce').fillna(100).astype(int)
+df['nominal_capacity'] = pd.to_numeric(df['nominal_capacity'], errors='coerce').fillna(100).astype(int)
+df['daily_shows'] = pd.to_numeric(df['daily_shows'], errors='coerce').fillna(10).astype(int)
+df['seat_efficiency'] = ((df['operational_seats'] / df['total_seats'].replace(0, 1)) * 100).round(1)
+df['weighted_score_str'] = df['weighted_score'].apply(lambda x: f"{x:.2f}")
+
+def get_level_badge(score):
+    if score >= 4.2:
+        return "سطح عالی (درجه ممتاز)", "badge-high"
+    elif score >= 3.2:
+        return "سطح مطلوب (قابل قبول)", "badge-mid"
+    elif score >= 2.2:
+        return "نیازمند بهبود و ارتقا", "badge-mid"
+    else:
+        return "وضعیت بحرانی / نیازمند بازسازی", "badge-low"
+
+# =====================================================================
+# ۴. نوار کناری (Sidebar) و هدر شناور کپسولی
+# =====================================================================
+st.sidebar.markdown("""
+<div style="text-align:center; padding: 12px 0 18px 0;">
+    <div class="brand-logo-pill">🎬 سامانه راهبری بهمن سبز</div>
+    <p style="color:#64748b; font-size:0.82rem; margin-top:8px; text-align:center !important;">نسخه ۹.۰ • رابط کاربری مینیمال و کرو</p>
+</div>
+""", unsafe_allow_html=True)
+
+if using_db:
+    st.sidebar.success(db_status)
+else:
+    st.sidebar.warning(f"🟡 حالت حافظه محلی\n({db_status})")
+
+menu = st.sidebar.radio("مسیرهای اصلی سامانه:", [
+    "📊 داشبورد تحلیلی و مقایسه‌ای",
+    "🏢 پروفایل جامع و شناسنامه سینما",
+    "📝 ثبت و ارزیابی چک‌لیستی سینما",
+    "⚖️ پنل مدیریت شاخص‌ها، چک‌لیست و وزن‌دهی",
+    "🔐 مدیریت داده‌ها و پشتیبان‌گیری (JSON)"
+])
+
+st.sidebar.divider()
+st.sidebar.markdown("**⚖️ ترکیب وزنی محورهای ارزیابی:**")
+total_w_sidebar = sum(float(a.get("weight", 0)) for a in config["axes"]) or 100.0
+for ax in config["axes"]:
+    pct = (float(ax.get("weight", 0)) / total_w_sidebar) * 100
+    st.sidebar.caption(f"🟢 {ax['title']}: **{pct:.1f}%** ({len(ax.get('indicators', []))} شاخص)")
+
+# هدر کپسولی بالای صفحه (Floating Capsule Header)
+conn_badge = "<span class='badge-high'>🟢 متصل به دیتابیس ابری</span>" if using_db else "<span class='badge-mid'>🟡 حالت حافظه موقت</span>"
+st.markdown(f"""
+<div class="top-floating-nav">
+    <div style="display:flex; align-items:center; gap:14px;">
+        <span class="brand-logo-pill">🎬 بهمن سبز</span>
+        <div>
+            <b style="font-size:1.08rem; color:#0f172a;">پلتفرم هوشمند ارزیابی، پایش و راهبری سینماهای کشور</b>
+            <div style="font-size:0.82rem; color:#64748b;">مبتنی بر مدل استاندارد ۳۳ شاخص و چک‌لیست‌های تخصصی ۵ محور</div>
+        </div>
+    </div>
+    <div>
+        <span class="pill-meta">🎞️ {len(df)} سینما در شبکه</span>
+        {conn_badge}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# =====================================================================
+# صفحه ۱: داشبورد تحلیلی و مقایسه‌ای
+# =====================================================================
+if menu == "📊 داشبورد تحلیلی و مقایسه‌ای":
+    # بنر قهرمان لایه‌ای و منحنی (Curved Layered Hero Banner)
+    avg_net_score = df['weighted_score'].mean() if not df.empty else 0.0
+    st.markdown(f"""
+    <div class="hero-curved-banner">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div>
+                <span style="background:rgba(255,255,255,0.2); padding:5px 16px; border-radius:999px; font-size:0.85rem; font-weight:700;">✨ نمای کلان راهبری شبکه سینماها</span>
+                <h2 style="margin:12px 0 6px 0; font-size:1.85rem; font-weight:900;">داشبورد جامع پایش کیفیت و بهره‌وری سینماها</h2>
+                <p style="margin:0; opacity:0.92; font-size:0.95rem;">تمامی امتیازات به صورت زنده بر اساس ضرایب وزنی و چک‌لیست‌های پنل مدیریت محاسبه می‌شوند.</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.16); backdrop-filter:blur(8px); padding:16px 26px; border-radius:26px; text-align:center; border:1px solid rgba(255,255,255,0.25);">
+                <span style="font-size:0.85rem; display:block; opacity:0.9;">میانگین امتیاز کیفی کل شبکه</span>
+                <b style="font-size:2.1rem; color:#ffffff;">{avg_net_score:.2f}</b> <span style="font-size:0.95rem;">/ ۵.۰۰</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # بخش آیکون‌های آرک/گنبدی ۵ محور اصلی (الهام‌گرفته از کارت‌های دسته‌بندی کرو و دایره‌ای)
+    st.markdown("<p style='text-align:center !important; font-weight:800; color:#334155; margin-bottom:14px;'>محورهای ۵گانه ارزیابی و میانگین امتیاز شبکه در هر محور</p>", unsafe_allow_html=True)
+    arch_cols = st.columns(5)
+    axis_visual_meta = {
+        "location": ("📍", "#d1fae5", "#059669", "score_location"),
+        "physical": ("🏛️", "#e0f2fe", "#0284c7", "score_physical"),
+        "technical": ("📽️", "#ede9fe", "#7c3aed", "score_technical"),
+        "operations": ("⚙️", "#fef3c7", "#d97706", "score_operations"),
+        "amenities": ("☕", "#fce7f3", "#db2777", "score_amenities"),
+    }
+    for idx_ax, ax in enumerate(config["axes"]):
+        icon, bg_c, txt_c, col_n = axis_visual_meta.get(ax["id"], ("⭐", "#ecfdf5", "#10b981", "score_location"))
+        mean_val = float(df[col_n].mean()) if col_n in df.columns and not df.empty else 3.5
+        ax_w_pct = (float(ax.get("weight", 20)) / total_w_sidebar) * 100
+        with arch_cols[idx_ax]:
+            st.markdown(f"""
+            <div class="arch-card">
+                <div class="arch-icon-circle" style="background:{bg_c}; color:{txt_c};">{icon}</div>
+                <div style="font-weight:800; font-size:0.92rem; color:#1e293b; text-align:center !important; min-height:40px; display:flex; align-items:center; justify-content:center;">{ax['title']}</div>
+                <div style="margin-top:6px; text-align:center !important;">
+                    <span style="background:{bg_c}; color:{txt_c}; padding:3px 12px; border-radius:999px; font-weight:800; font-size:0.88rem;">{mean_val:.2f} از ۵</span>
+                </div>
+                <div style="font-size:0.76rem; color:#64748b; margin-top:6px; text-align:center !important;">وزن محور: {ax_w_pct:.0f}% • {len(ax.get('indicators', []))} شاخص</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.write("")
+    # کادر فیلتر با استایل Notched (الهام‌گرفته از باکس فیلترها در الگوی ارسالی)
+    st.markdown('<div class="notched-section-box"><div class="notched-tab-title">🔍 فیلترها و شاخص‌های کلیدی عملکرد (KPI)</div>', unsafe_allow_html=True)
+    provinces = ["همه استان‌ها"] + sorted(list(df["province"].dropna().unique()))
+    sel_prov = st.selectbox("📍 انتخاب استان جهت فیلتر داشبورد:", provinces)
+    f_df = df if sel_prov == "همه استان‌ها" else df[df["province"] == sel_prov].copy()
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        st.metric("تعداد سینماها", f"{len(f_df)}")
+    with c2:
+        st.metric("تعداد کل سالن‌ها", f"{int(f_df['halls'].sum()):,}")
+    with c3:
+        st.metric("صندلی‌های عملیاتی (فعال)", f"{int(f_df['operational_seats'].sum()):,}")
+    with c4:
+        avg_sc = f_df['weighted_score'].mean() if not f_df.empty else 0
+        st.metric("میانگین امتیاز موزون", f"{avg_sc:.2f} از ۵")
+    with c5:
+        avg_eff = f_df['seat_efficiency'].mean() if not f_df.empty else 0
+        st.metric("بهره‌وری ظرفیت صندلی", f"{avg_eff:.1f}%")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    col_left, col_right = st.columns([1.15, 0.85])
+
+    with col_left:
+        st.subheader("📈 رتبه‌بندی سینماها بر اساس امتیاز موزون و بهره‌وری صندلی")
+        if not f_df.empty:
+            plot_df = f_df.sort_values(by="weighted_score", ascending=False).reset_index(drop=True)
+            fig_bar = go.Figure(data=[
+                go.Bar(
+                    x=plot_df["name"].astype(str).tolist(),
+                    y=plot_df["weighted_score"].astype(float).tolist(),
+                    text=plot_df["weighted_score_str"].astype(str).tolist(),
+                    textposition="outside",
+                    marker=dict(
+                        color=plot_df["seat_efficiency"].astype(float).tolist(),
+                        colorscale="Tealgrn",
+                        showscale=True,
+                        colorbar=dict(title="بهره‌وری (%)"),
+                        cornerradius=14
+                    ),
+                    hovertemplate="<b>%{x}</b><br>امتیاز موزون: %{y:.2f} از ۵<extra></extra>"
+                )
+            ])
+            fig_bar.update_layout(
+                yaxis=dict(title="امتیاز موزون کل (۰ تا ۵)", range=[0, 5.5], gridcolor="#f1f5f9"),
+                xaxis=dict(title="نام سینما"),
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                height=420,
+                margin=dict(t=30, b=40, l=40, r=40)
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.info("سینمایی برای نمایش یافت نشد.")
+
+    with col_right:
+        st.subheader("🕸️ مقایسه راداری محورهای ارزیابی")
+        if not f_df.empty:
+            sel_cinemas = st.multiselect(
+                "انتخاب یک یا چند سینما جهت مقایسه راداری:",
+                options=f_df["name"].unique().tolist(),
+                default=f_df["name"].unique().tolist()[:2]
+            )
+            fig_radar = go.Figure()
+            ax_titles = [ax["title"] for ax in config["axes"]]
+            palette = ["#00a86b", "#0284c7", "#8b5cf6", "#f59e0b"]
+            
+            for idx_c, c_name in enumerate(sel_cinemas):
+                row_c = f_df[f_df["name"] == c_name].iloc[0]
+                _, ax_scores_dict = compute_dynamic_scores(row_c, config)
+                r_vals = [float(ax_scores_dict.get(ax["id"], 3.5)) for ax in config["axes"]]
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=r_vals + [r_vals[0]],
+                    theta=ax_titles + [ax_titles[0]],
+                    fill='toself',
+                    name=c_name,
+                    line=dict(color=palette[idx_c % len(palette)], width=2.5)
+                ))
+            fig_radar.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[0, 5], gridcolor="#e2e8f0")),
+                paper_bgcolor="#ffffff",
+                showlegend=True,
+                height=360,
+                margin=dict(t=30, b=30, l=40, r=40)
+            )
+            st.plotly_chart(fig_radar, use_container_width=True)
+
+    st.divider()
+    st.subheader("📋 جدول مقایسه‌ای عملکرد و امتیازات محورها")
+    summary_cols = {
+        "name": "نام سینما", "province": "استان", "city": "شهر",
+        "halls": "تعداد سالن", "total_seats": "کل صندلی", "operational_seats": "صندلی فعال",
+        "seat_efficiency": "بهره‌وری صندلی (%)", "weighted_score": "امتیاز کل (از ۵)",
+        "score_location": "موقعیت و دسترسی", "score_physical": "وضعیت فیزیکی",
+        "score_technical": "تجهیزات فنی", "score_operations": "راهبری", "score_amenities": "امکانات جانبی"
+    }
+    avail_cols = [c for c in summary_cols.keys() if c in f_df.columns]
+    disp_df = f_df[avail_cols].rename(columns=summary_cols)
+    st.dataframe(disp_df, use_container_width=True, hide_index=True)
+
+# =====================================================================
+# صفحه ۲: پروفایل جامع و شناسنامه سینما (با طراحی کارت منحنی و کپسولی)
+# =====================================================================
+elif menu == "🏢 پروفایل جامع و شناسنامه سینما":
+    st.subheader("🏢 پروفایل اختصاصی و کارنامه ارزیابی سینما")
+    st.caption("مشاهده شناسنامه ظرفیتی، سطح کیفی محورها، امتیاز تک‌تک شاخص‌ها و وضعیت چک‌لیست‌های اختصاصی")
+
+    if df.empty:
+        st.warning("هنوز سینمایی در سیستم ثبت نشده است.")
+    else:
+        selected_name = st.selectbox("🎬 سینما را جهت مشاهده پروفایل انتخاب کنید:", df["name"].unique().tolist())
+        c_row = df[df["name"] == selected_name].iloc[0]
+        w_score, ax_scores_map = compute_dynamic_scores(c_row, config)
+        lvl_text, lvl_class = get_level_badge(w_score)
+        details = c_row.get("evaluation_details", {}) or {}
+        ind_saved = details.get("indicators", {}) or {}
+        notes = details.get("notes", "یادداشتی ثبت نشده است.")
+
+        # هدر کارت پروفایل با طراحی لایه‌ای منحنی و کپسول‌های متادیتا
+        st.markdown(f"""
+        <div class="hero-curved-banner">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:18px;">
+                <div>
+                    <div style="margin-bottom:12px;">
+                        <span style="background:rgba(255,255,255,0.22); padding:6px 16px; border-radius:999px; font-size:0.85rem; margin-left:8px;">📍 {c_row['province']} - {c_row['city']}</span>
+                        <span style="background:rgba(255,255,255,0.22); padding:6px 16px; border-radius:999px; font-size:0.85rem; margin-left:8px;">🎞️ {int(c_row.get('halls', 1))} سالن نمایش</span>
+                        <span style="background:rgba(255,255,255,0.22); padding:6px 16px; border-radius:999px; font-size:0.85rem;">💺 {int(c_row.get('operational_seats', 100)):,} صندلی فعال</span>
+                    </div>
+                    <h2 style="margin:0 0 8px 0; font-size:2rem; font-weight:900;">🎬 {c_row['name']}</h2>
+                    <p style="margin:0; opacity:0.92;">🗺️ <b>نشانی:</b> {c_row['address']}</p>
+                </div>
+                <div style="text-align:center; background:rgba(255,255,255,0.18); backdrop-filter:blur(10px); padding:18px 28px; border-radius:28px; border:1px solid rgba(255,255,255,0.3);">
+                    <span style="font-size:0.88em; opacity:0.9; display:block;">امتیاز نهایی پروفایل سینما</span>
+                    <h2 style="margin:6px 0 10px 0; font-size:2.3em; font-weight:900;">{w_score:.2f} <span style="font-size:0.45em;">از ۵.۰۰</span></h2>
+                    <span class="{lvl_class}">{lvl_text}</span>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # بخش اول: مشخصات و ظرفیت سینما (۷ مورد شناسنامه‌ای PDF)
+        st.subheader("📌 بخش اول: مشخصات و ظرفیت زیرساختی سینما")
+        st.caption("این شاخص‌ها شناسنامه‌ای بوده و مبنای محاسبه بهره‌وری ظرفیت و ضریب اشغال هستند.")
+        k1, k2, k3, k4, k5, k6 = st.columns(6)
+        total_s = int(c_row.get("total_seats", 100))
+        op_s = int(c_row.get("operational_seats", 100))
+        nom_s = int(c_row.get("nominal_capacity", 100))
+        d_shows = int(c_row.get("daily_shows", 10))
+        inactive_s = max(0, total_s - op_s)
+        daily_cap = op_s * d_shows
+
+        k1.metric("تعداد سالن", f"{int(c_row.get('halls', 1))} سالن")
+        k2.metric("مجموع صندلی‌ها", f"{total_s:,}")
+        k3.metric("ظرفیت اسمی", f"{nom_s:,}")
+        k4.metric("صندلی عملیاتی (فعال)", f"{op_s:,}", delta=f"{-inactive_s} صندلی غیرفعال" if inactive_s > 0 else "۱۰۰٪ فعال")
+        k5.metric("بهره‌وری ظرفیت", f"{c_row.get('seat_efficiency', 100)}%")
+        k6.metric("ظرفیت پذیرش روزانه", f"{daily_cap:,} نفر", help=f"بر اساس {d_shows} سانس قابل ارائه در روز")
+
+        if c_row.get("hall_seats_detail"):
+            st.info(f"**تفکیک صندلی سالن‌ها:** {c_row['hall_seats_detail']}")
+
+        st.divider()
+
+        # بخش دوم: نمودارهای تحلیلی پروفایل سینما
+        p_col1, p_col2 = st.columns([1, 1])
+        with p_col1:
+            st.subheader("🕸️ نیمرخ تعادل ۵ محور ارزیابی")
+            ax_names = [a["title"] for a in config["axes"]]
+            ax_vals = [float(ax_scores_map.get(a["id"], 3.5)) for a in config["axes"]]
+            fig_p_radar = go.Figure(data=go.Scatterpolar(
+                r=ax_vals + [ax_vals[0]],
+                theta=ax_names + [ax_names[0]],
+                fill='toself',
+                line_color='#2563eb',
+                name=selected_name
+            ))
+            fig_p_radar.update_layout(
+                polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+                showlegend=False, height=350, margin=dict(t=25, b=25, l=40, r=40)
+            )
+            st.plotly_chart(fig_p_radar, use_container_width=True)
+
+        with p_col2:
+            st.subheader("📊 مقایسه امتیاز محورها با میانگین کل شبکه")
+            net_means = []
+            for a in config["axes"]:
+                col_m = {"location": "score_location", "physical": "score_physical", "technical": "score_technical",
+                         "operations": "score_operations", "amenities": "score_amenities"}.get(a["id"])
+                net_means.append(round(float(df[col_m].mean()), 2) if col_m in df.columns else 3.5)
+
+            fig_comp = go.Figure(data=[
+                go.Bar(name=selected_name, x=ax_names, y=ax_vals, marker=dict(color='#00a86b', cornerradius=10), text=[f"{v:.2f}" for v in ax_vals], textposition='auto'),
+                go.Bar(name="میانگین شبکه", x=ax_names, y=net_means, marker=dict(color='#94a3b8', cornerradius=10), text=[f"{v:.2f}" for v in net_means], textposition='auto')
+            ])
+            fig_comp.update_layout(barmode='group', yaxis=dict(range=[0, 5.5], title="امتیاز (از ۵)"), paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", height=350, margin=dict(t=25, b=25, l=30, r=30))
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+        st.divider()
+
+        # بخش سوم: ریز کارنامه تک‌تک شاخص‌ها و چک‌لیست‌ها در هر محور
+        st.subheader("🔍 کارنامه تفصیلی شاخص‌ها و چک‌لیست‌های ارزیابی (بخش‌بندی محورها)")
+        st.caption("در هر محور می‌توانید امتیاز کسب‌شده در تک‌تک شاخص‌ها، سطح کیفی و گزینه‌های پاس‌شده در چک‌لیست را مشاهده نمایید.")
+
+        axis_tabs = st.tabs([f"{ax['title']} ({ax_scores_map.get(ax['id'], 3.5):.2f}/5)" for ax in config["axes"]])
+
+        for idx_tab, ax in enumerate(config["axes"]):
+            with axis_tabs[idx_tab]:
+                ax_id = ax["id"]
+                ax_score_val = ax_scores_map.get(ax_id, 3.5)
+                ax_lvl, ax_badge = get_level_badge(ax_score_val)
+                
+                st.markdown(f"**امتیاز کل محور «{ax['title']}»:** `{ax_score_val:.2f} از ۵.۰۰` &nbsp;|&nbsp; <span class='{ax_badge}'>{ax_lvl}</span> &nbsp;|&nbsp; **وزن محور در کل:** `{ax['weight']}%`", unsafe_allow_html=True)
+                st.progress(min(1.0, max(0.0, ax_score_val / 5.0)))
+                st.write("")
+
+                inds = ax.get("indicators", [])
+                if not inds:
+                    st.info("شاخصی برای این محور تعریف نشده است.")
+                else:
+                    for ind in inds:
+                        i_id = ind["id"]
+                        i_title = ind["title"]
+                        i_w = ind.get("weight", 10.0)
+                        chk_items = ind.get("checklist", [])
+                        
+                        # خواندن امتیاز شاخص یا معادل‌سازی با امتیاز محور در صورتی که قبلاً ثبت کلی شده باشد
+                        saved_ind_obj = ind_saved.get(i_id, {})
+                        i_score = float(saved_ind_obj.get("score", ax_score_val))
+                        checked_list = saved_ind_obj.get("checked", None)
+                        i_lvl, i_bdg = get_level_badge(i_score)
+
+                        with st.container():
+                            st.markdown(f"""
+                            <div class="ind-card">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <b style="font-size:1.05em;">{i_title}</b>
+                                        <span style="color:#64748b; font-size:0.85em; margin-right:8px;">(وزن درون‌محوری: {i_w}%)</span>
+                                    </div>
+                                    <div>
+                                        <span class="{i_bdg}">{i_lvl}</span>
+                                        <b style="margin-right:10px; font-size:1.1em; color:#0f172a;">{i_score:.2f} / 5</b>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            if chk_items:
+                                with st.expander(f"📋 مشاهده وضعیت چک‌لیست «{i_title}» ({len(chk_items)} معیار ارزیابی)"):
+                                    cols_chk = st.columns(2)
+                                    for c_i, item_txt in enumerate(chk_items):
+                                        with cols_chk[c_i % 2]:
+                                            if checked_list is not None:
+                                                is_ok = item_txt in checked_list
+                                                icon = "✅" if is_ok else "⬜"
+                                                st.markdown(f"{icon} {item_txt}")
+                                            else:
+                                                st.markdown(f"🔹 {item_txt} *(ثبت کلی)*")
+
+        st.divider()
+        st.markdown(f"**📝 یادداشت و جمع‌بندی ارزیاب:** {notes}")
+
+# =====================================================================
+# صفحه ۳: ثبت و ارزیابی چک‌لیستی سینما (پشتیبانی از ثبت جدید و ویرایش)
+# =====================================================================
+elif menu == "📝 ثبت و ارزیابی چک‌لیستی سینما":
+    st.title("📝 فرم جامع شناسنامه و ارزیابی چک‌لیستی سینما")
+    st.caption("می‌توانید یک سینمای جدید ثبت کنید یا سینمای موجود را انتخاب کرده و چک‌لیست‌ها و امتیازات تک‌تک شاخص‌های آن را ویرایش و به‌روزرسانی نمایید.")
+
+    mode_options = ["➕ ثبت سینمای جدید"] + [f"✏️ ویرایش: {n}" for n in df["name"].unique().tolist()]
+    edit_mode = st.selectbox("حالت عملیات را انتخاب کنید:", mode_options)
+
+    is_edit = edit_mode.startswith("✏️ ویرایش:")
+    existing_row = None
+    existing_details = {}
+    existing_ind_map = {}
+
+    if is_edit:
+        target_name = edit_mode.replace("✏️ ویرایش: ", "")
+        existing_row = df[df["name"] == target_name].iloc[0]
+        existing_details = existing_row.get("evaluation_details", {}) or {}
+        existing_ind_map = existing_details.get("indicators", {}) or {}
+
+    st.subheader("🏢 بخش ۱: مشخصات شناسنامه‌ای و ظرفیت سینما")
+    g1, g2, g3 = st.columns(3)
+    with g1:
+        name = st.text_input("نام سینما (اجباری)*:", value=existing_row["name"] if is_edit else "")
+        province = st.text_input("استان:", value=existing_row["province"] if is_edit else "تهران")
+        city = st.text_input("شهر:", value=existing_row["city"] if is_edit else "تهران")
+    with g2:
+        address = st.text_area("آدرس دقیق:", value=existing_row["address"] if is_edit else "", height=110)
+        halls = st.number_input("تعداد سالن:", min_value=1, value=int(existing_row["halls"]) if is_edit else 1)
+    with g3:
+        hall_seats_detail = st.text_area(
+            "تعداد صندلی هر سالن (مثال: سالن ۱: ۳۰۰، سالن ۲: ۱۵۰):",
+            value=str(existing_row.get("hall_seats_detail", "")) if is_edit else "",
+            height=110
+        )
+
+    g4, g5, g6, g7 = st.columns(4)
+    with g4:
+        total_seats = st.number_input("مجموع صندلی‌های سینما:", min_value=1, value=int(existing_row["total_seats"]) if is_edit else 300)
+    with g5:
+        nominal_capacity = st.number_input("ظرفیت اسمی:", min_value=1, value=int(existing_row["nominal_capacity"]) if is_edit else 320)
+    with g6:
+        op_seats = st.number_input("تعداد صندلی عملیاتی (فعال):", min_value=0, value=int(existing_row["operational_seats"]) if is_edit else 280)
+    with g7:
+        daily_shows = st.number_input("تعداد سانس قابل ارائه در روز:", min_value=1, value=int(existing_row["daily_shows"]) if is_edit else 12)
+
+    st.divider()
+    st.subheader("🎯 بخش ۲: ارزیابی محورها، شاخص‌ها و چک‌لیست‌های اختصاصی")
+    scoring_method = st.radio(
+        "نحوه محاسبه امتیاز هر شاخص (۰ تا ۵):",
+        ["🔄 محاسبه خودکار امتیاز شاخص بر اساس درصد گزینه‌های تیک‌خورده چک‌لیست (همراه با قابلیت تنظیم دستی)", "🎚️ تعیین دستی امتیاز با اسلایدر (چک‌لیست به عنوان مستندات ارزیابی)"],
+        horizontal=True
+    )
+    auto_calc = scoring_method.startswith("🔄")
+
+    collected_indicators = {}
+    calculated_axis_scores = {}
+
+    for ax in config["axes"]:
+        ax_id = ax["id"]
+        ax_title = ax["title"]
+        ax_w = ax["weight"]
+        inds = ax.get("indicators", [])
+
+        with st.expander(f"📌 محور: {ax_title} (وزن محور: {ax_w}% | تعداد شاخص: {len(inds)})", expanded=(ax_id == "location")):
+            ax_weighted_sum = 0.0
+            ax_total_ind_w = 0.0
+
+            for ind in inds:
+                i_id = ind["id"]
+                i_title = ind["title"]
+                i_w = float(ind.get("weight", 10.0))
+                chk_list = ind.get("checklist", [])
+
+                prev_ind = existing_ind_map.get(i_id, {})
+                prev_checked = prev_ind.get("checked", [])
+                prev_score = float(prev_ind.get("score", 3.5))
+
+                st.markdown(f"##### 🔹 {i_title} *(وزن نسبی در محور: {i_w}%)*")
+                checked_now = []
+                if chk_list:
+                    c_cols = st.columns(2)
+                    for idx_c, c_text in enumerate(chk_list):
+                        with c_cols[idx_c % 2]:
+                            default_chk = (c_text in prev_checked) if is_edit else True
+                            if st.checkbox(c_text, value=default_chk, key=f"form_chk_{ax_id}_{i_id}_{idx_c}"):
+                                checked_now.append(c_text)
+
+                if auto_calc and len(chk_list) > 0:
+                    suggested_score = round((len(checked_now) / len(chk_list)) * 5.0, 2)
+                else:
+                    suggested_score = prev_score
+
+                final_ind_score = st.slider(
+                    f"امتیاز شاخص «{i_title}» (۰ تا ۵):",
+                    min_value=0.0, max_value=5.0,
+                    value=float(suggested_score),
+                    step=0.1,
+                    key=f"form_sld_{ax_id}_{i_id}_{len(checked_now) if auto_calc else 'manual'}"
+                )
+
+                collected_indicators[i_id] = {
+                    "score": round(float(final_ind_score), 2),
+                    "checked": checked_now
+                }
+                ax_weighted_sum += final_ind_score * i_w
+                ax_total_ind_w += i_w
+                st.markdown("---")
+
+            ax_final = round(ax_weighted_sum / ax_total_ind_w, 2) if ax_total_ind_w > 0 else 3.5
+            calculated_axis_scores[ax_id] = ax_final
+            st.success(f"📊 **امتیاز موزون محاسبه‌شده برای محور «{ax_title}»:** `{ax_final:.2f} از ۵.۰۰`")
+
+    eval_notes = st.text_area("📝 یادداشت‌ها، نقاط قوت/ضعف کلیدی و پیشنهادهای اصلاحی ارزیاب:", value=existing_details.get("notes", "") if is_edit else "")
+
+    # پیش‌نمایش امتیاز کل قبل از ذخیره
+    total_cfg_w = sum(float(a.get("weight", 0)) for a in config["axes"]) or 100.0
+    preview_total = sum(calculated_axis_scores.get(a["id"], 3.5) * (float(a.get("weight", 0)) / total_cfg_w) for a in config["axes"])
+    st.info(f"🏆 **پیش‌نمایش امتیاز نهایی موزون سینما (بر اساس وزن‌های فعلی سامانه):** `{preview_total:.2f} از ۵.۰۰`")
+
+    if st.button("💾 ذخیره نهایی شناسنامه و کارنامه ارزیابی سینما", type="primary"):
+        if not name.strip():
+            st.error("❌ لطفاً نام سینما را وارد نمایید.")
+        else:
+            payload = {
+                "name": name.strip(),
+                "province": province.strip() if province else "نامشخص",
+                "city": city.strip() if city else "نامشخص",
+                "address": address.strip() if address else "ثبت نشده",
+                "halls": int(halls),
+                "hall_seats_detail": hall_seats_detail.strip(),
+                "total_seats": int(total_seats),
+                "nominal_capacity": int(nominal_capacity),
+                "operational_seats": int(op_seats),
+                "daily_shows": int(daily_shows),
+                "score_location": float(calculated_axis_scores.get("location", 3.5)),
+                "score_physical": float(calculated_axis_scores.get("physical", 3.5)),
+                "score_technical": float(calculated_axis_scores.get("technical", 3.5)),
+                "score_operations": float(calculated_axis_scores.get("operations", 3.5)),
+                "score_amenities": float(calculated_axis_scores.get("amenities", 3.5)),
+                "evaluation_details": {
+                    "axis_scores": calculated_axis_scores,
+                    "indicators": collected_indicators,
+                    "notes": eval_notes.strip(),
+                    "updated_at": datetime.utcnow().isoformat()
+                }
+            }
+
+            target_id = int(existing_row["id"]) if is_edit and "id" in existing_row else None
+            ok, msg = upsert_cinema_db(payload, cinema_id=target_id)
+            if ok:
+                st.success(f"✅ اطلاعات سینمای «{name}» با موفقیت ذخیره شد! ({msg})")
+                st.rerun()
+            else:
+                # ذخیره در حافظه محلی در صورت عدم اتصال به دیتابیس
+                if is_edit and target_id is not None:
+                    for k, v in payload.items():
+                        st.session_state.local_data.loc[st.session_state.local_data["id"] == target_id, k] = [v] if isinstance(v, dict) else v
+                else:
+                    payload["id"] = int(st.session_state.local_data["id"].max() + 1) if not st.session_state.local_data.empty else 1
+                    st.session_state.local_data = pd.concat([st.session_state.local_data, pd.DataFrame([payload])], ignore_index=True)
+                st.warning(f"⚠️ ذخیره در حافظه محلی انجام شد. (پیام دیتابیس: {msg})")
+                st.rerun()
+
+# =====================================================================
+# صفحه ۴: پنل مدیریت شاخص‌ها، چک‌لیست و وزن‌دهی (درخواست کلیدی کاربر)
+# =====================================================================
+elif menu == "⚖️ پنل مدیریت شاخص‌ها، چک‌لیست و وزن‌دهی":
+    st.title("⚖️ پنل پویا مدیریت وزن‌ها، شاخص‌ها و چک‌لیست‌ها")
+    st.caption("مطابق با سند طراحی، در این پنل می‌توانید وزن ۵ محور اصلی را تغییر دهید، شاخص‌ها را انتخاب و وزن‌دهی کنید و گزینه‌های چک‌لیست ذیل هر شاخص را اضافه، حذف یا ویرایش نمایید.")
+
+    working_cfg = copy.deepcopy(config)
+
+    # ۱. تنظیم وزن ۵ محور اصلی
+    st.subheader("۱. تنظیم وزن ۵ محور اصلی ارزیابی")
+    st.info("امتیاز نهایی هر سینما از میانگین موزون این ۵ محور محاسبه می‌شود. (پیشنهاد می‌شود مجموع وزن‌ها ۱۰۰ باشد؛ سیستم به صورت خودکار نیز نرمال‌سازی می‌کند).")
+    
+    w_cols = st.columns(len(working_cfg["axes"]))
+    for idx_a, ax in enumerate(working_cfg["axes"]):
+        with w_cols[idx_a]:
+            new_ax_w = st.number_input(
+                f"وزن «{ax['title']}» (%):",
+                min_value=0.0, max_value=100.0,
+                value=float(ax.get("weight", 20.0)),
+                step=1.0,
+                key=f"cfg_ax_w_{ax['id']}"
+            )
+            working_cfg["axes"][idx_a]["weight"] = new_ax_w
+
+    sum_ax_w = sum(a["weight"] for a in working_cfg["axes"])
+    if abs(sum_ax_w - 100.0) < 0.01:
+        st.success(f"✅ مجموع وزن محورها دقیقاً **{sum_ax_w:.1f}%** است.")
+    else:
+        st.warning(f"ℹ️ مجموع وزن محورها **{sum_ax_w:.1f}%** است (سیستم در محاسبات به صورت خودکار نسبت به {sum_ax_w:.1f} نرمال‌سازی می‌کند).")
+
+    if st.button("💾 ذخیره تغییرات وزن محورها", key="save_ax_weights_btn"):
+        ok, msg = save_config(working_cfg)
+        st.success(f"✅ {msg}")
+        st.rerun()
+
+    st.divider()
+
+    # ۲. انتخاب محور و مدیریت شاخص‌ها و چک‌لیست‌های ذیل آن
+    st.subheader("۲. مدیریت شاخص‌ها و چک‌لیست‌های اختصاصی هر محور")
+    ax_titles_map = {ax["title"]: idx for idx, ax in enumerate(working_cfg["axes"])}
+    selected_ax_title = st.selectbox("📂 محور مورد نظر را انتخاب کنید:", list(ax_titles_map.keys()))
+    sel_ax_idx = ax_titles_map[selected_ax_title]
+    sel_ax_obj = working_cfg["axes"][sel_ax_idx]
+
+    col_ind_select, col_ind_add = st.columns([1.3, 0.7])
+
+    with col_ind_add:
+        with st.expander("➕ افزودن شاخص جدید به این محور"):
+            new_ind_title = st.text_input("عنوان شاخص جدید:")
+            new_ind_weight = st.number_input("وزن نسبی شاخص در این محور (%):", min_value=1.0, max_value=100.0, value=15.0)
+            if st.button("افزودن شاخص جدید"):
+                if new_ind_title.strip():
+                    new_id = f"{sel_ax_obj['id']}_custom_{len(sel_ax_obj['indicators']) + 1}_{int(datetime.utcnow().timestamp()) % 1000}"
+                    sel_ax_obj["indicators"].append({
+                        "id": new_id,
+                        "title": new_ind_title.strip(),
+                        "weight": float(new_ind_weight),
+                        "checklist": ["معیار ارزیابی ۱", "معیار ارزیابی ۲"]
+                    })
+                    save_config(working_cfg)
+                    st.success("شاخص جدید اضافه شد!")
+                    st.rerun()
+
+    with col_ind_select:
+        inds_list = sel_ax_obj.get("indicators", [])
+        if not inds_list:
+            st.warning("هیچ شاخصی در این محور وجود ندارد.")
+        else:
+            ind_titles_map = {f"{ind['title']} (وزن: {ind.get('weight', 10)}%)": i for i, ind in enumerate(inds_list)}
+            selected_ind_label = st.selectbox("🎯 شاخص مورد نظر را جهت ویرایش وزن یا تغییر لیست چک‌لیست انتخاب کنید:", list(ind_titles_map.keys()))
+            sel_ind_idx = ind_titles_map[selected_ind_label]
+            sel_ind_obj = inds_list[sel_ind_idx]
+
+    if inds_list:
+        st.markdown(f"#### ⚙️ ویرایش شاخص: «{sel_ind_obj['title']}»")
+        e_col1, e_col2 = st.columns([2, 1])
+        with e_col1:
+            edited_title = st.text_input("عنوان شاخص:", value=sel_ind_obj["title"], key=f"ed_title_{sel_ind_obj['id']}")
+        with e_col2:
+            edited_weight = st.number_input("وزن شاخص در محور (%):", min_value=0.0, max_value=100.0, value=float(sel_ind_obj.get("weight", 10.0)), step=1.0, key=f"ed_w_{sel_ind_obj['id']}")
+
+        st.markdown("**📋 مدیریت گزینه‌های چک‌لیست ذیل این شاخص:**")
+        st.caption("هر سطر معادل یک آیتم چک‌لیست است. می‌توانید گزینه‌ها را ویرایش کنید، سطر جدید اضافه کنید یا سطری را حذف نمایید.")
+        
+        current_chk_text = "\n".join(sel_ind_obj.get("checklist", []))
+        edited_chk_text = st.text_area(
+            "آیتم‌های چک‌لیست (هر گزینه در یک خط مجزا):",
+            value=current_chk_text,
+            height=220,
+            key=f"ed_chk_{sel_ind_obj['id']}"
+        )
+
+        btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1])
+        with btn_c1:
+            if st.button("💾 ذخیره تغییرات این شاخص و چک‌لیست آن", type="primary"):
+                sel_ind_obj["title"] = edited_title.strip()
+                sel_ind_obj["weight"] = float(edited_weight)
+                sel_ind_obj["checklist"] = [line.strip() for line in edited_chk_text.split("\n") if line.strip()]
+                ok, msg = save_config(working_cfg)
+                st.success(f"✅ تغییرات شاخص و چک‌لیست ذخیره شد! ({msg})")
+                st.rerun()
+        with btn_c2:
+            if st.button("🗑️ حذف این شاخص از محور"):
+                if len(inds_list) > 1:
+                    sel_ax_obj["indicators"].pop(sel_ind_idx)
+                    save_config(working_cfg)
+                    st.warning("شاخص حذف شد.")
+                    st.rerun()
+                else:
+                    st.error("هر محور باید حداقل یک شاخص داشته باشد.")
+        with btn_c3:
+            if st.button("🔄 بازگشت کل ساختار به استاندارد اولیه PDF"):
+                default_c = get_default_config()
+                save_config(default_c)
+                st.info("ساختار شاخص‌ها و چک‌لیست‌ها به حالت پیش‌فرض سند بهمن سبز بازگردانده شد.")
+                st.rerun()
+
+# =====================================================================
+# صفحه ۵: مدیریت داده‌ها و پشتیبان‌گیری امن JSON (با رمز عبور استاتیک)
+# =====================================================================
+elif menu == "🔐 مدیریت داده‌ها و پشتیبان‌گیری (JSON)":
+    st.title("🔐 مدیریت بانک اطلاعاتی و پشتیبان‌گیری جامع (Backup & Restore)")
+    st.caption("دریافت خروجی اکسل/CSV و پشتیبان‌گیری کامل JSON (شامل تمام سینماها، چک‌لیست‌ها، امتیازات و تنظیمات وزن‌ها) جهت تضمین عدم از دست رفتن اطلاعات")
+
+    st.subheader("📊 جدول کامل اطلاعات سینماها")
+    base_cols = [c for c in ['id', 'name', 'province', 'city', 'halls', 'total_seats', 'operational_seats', 'daily_shows', 'weighted_score', 'seat_efficiency'] if c in df.columns]
+    st.dataframe(df[base_cols], use_container_width=True, hide_index=True)
+
+    csv_data = df.drop(columns=['evaluation_details'], errors='ignore').to_csv(index=False).encode('utf-8-sig')
+    st.download_button(
+        label="📥 دانلود جدول خلاصه به فرمت CSV / Excel",
+        data=csv_data,
+        file_name=f"cinemas_summary_{datetime.now().strftime('%Y%m%d')}.csv",
+        mime="text/csv"
+    )
+
+    st.divider()
+
+    # بخش امنیتی خروجی و بازیابی کامل JSON با رمز عبور استاتیک Ma9184364191
+    st.subheader("🛡️ بخش ویژه پشتیبان‌گیری و بازیابی کامل اطلاعات (JSON)")
+    st.info("برای دسترسی به دانلود فایل پشتیبان جامع (شامل تمام جزئیات چک‌لیست‌ها، شاخص‌ها، وزن‌ها و سینماها) یا بازیابی اطلاعات، لطفاً رمز عبور مدیریتی را وارد نمایید.")
+
+    pwd_input = st.text_input("🔑 رمز عبور مدیریتی را وارد کنید:", type="password")
+
+    if pwd_input == "Ma9184364191":
+        st.success("🔓 رمز عبور تایید شد. دسترسی کامل مدیریتی فعال است.")
+        
+        # ساخت پکیج کامل JSON
+        cinemas_records = df.drop(columns=['weighted_score_str'], errors='ignore').to_dict(orient="records")
+        full_backup_payload = {
+            "backup_version": "v8.0",
+            "exported_at": datetime.utcnow().isoformat(),
+            "app_config": config,
+            "cinemas_count": len(cinemas_records),
+            "cinemas": cinemas_records
+        }
+        json_str = json.dumps(full_backup_payload, ensure_ascii=False, indent=2)
+
+        b_col1, b_col2 = st.columns(2)
+        with b_col1:
+            st.markdown("#### 📤 دریافت فایل پشتیبان کامل (JSON)")
+            st.write("این فایل شامل **تمامی اطلاعات ثبت‌شده سینماها، وضعیت تک‌تک چک‌لیست‌ها، امتیازات ۳۳ شاخص و ساختار وزن‌دهی** است.")
+            st.download_button(
+                label="📥 دانلود فایل پشتیبان جامع (Full JSON Backup)",
+                data=json_str.encode('utf-8'),
+                file_name=f"bahman_cinema_full_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                mime="application/json",
+                type="primary"
+            )
+            with st.expander("👁️ پیش‌نمایش محتوای JSON"):
+                st.json(full_backup_payload)
+
+        with b_col2:
+            st.markdown("#### 📥 بازیابی اطلاعات از فایل پشتیبان (Restore JSON)")
+            st.write("در صورتی که در آینده مشکلی برای دیتابیس یا داشبورد پیش آمد، کافیست فایل JSON دانلودشده را در اینجا بارگذاری کنید تا تمام اطلاعات بازگردانی شود.")
+            uploaded_json = st.file_uploader("فایل JSON پشتیبان را انتخاب کنید:", type=["json"])
+            if uploaded_json is not None:
+                try:
+                    restored_data = json.load(uploaded_json)
+                    if st.button("♻️ اجرای عملیات بازیابی کامل اطلاعات"):
+                        if "app_config" in restored_data:
+                            save_config(restored_data["app_config"])
+                        if "cinemas" in restored_data and isinstance(restored_data["cinemas"], list):
+                            st.session_state.local_data = pd.DataFrame(restored_data["cinemas"])
+                            if using_db:
+                                for c_item in restored_data["cinemas"]:
+                                    clean_item = {k: v for k, v in c_item.items() if k not in ["id", "created_at", "weighted_score", "seat_efficiency", "weighted_score_str"]}
+                                    upsert_cinema_db(clean_item)
+                        st.success("✅ تمامی تنظیمات، وزن‌ها و اطلاعات سینماها با موفقیت بازیابی شدند!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ خطا در خواندن فایل JSON: {str(e)}")
+
+    elif pwd_input != "":
+        st.error("❌ رمز عبور وارد شده صحیح نیست.")
